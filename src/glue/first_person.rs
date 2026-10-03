@@ -21,7 +21,7 @@ use bevy::{
     render::view::screenshot::{Screenshot, save_to_disk},
     world_serialization::WorldInstanceReady,
 };
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs, marker::PhantomData, path::PathBuf};
 
 #[derive(Resource)]
 pub struct FpsOptions {
@@ -115,6 +115,34 @@ impl FpsMap {
     }
 }
 
+impl CollisionWorld for FpsMap {
+    fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> crate::collision::Trace {
+        self.collision.trace(start, end, hull)
+    }
+}
+
+/// A composition supplies this only after the spawn area's collision is ready.
+#[derive(Resource, Clone, Copy)]
+pub struct FpsSpawn {
+    pub position: Vec3,
+    pub yaw: f32,
+}
+
+#[derive(Resource)]
+pub struct FpsPresentation {
+    pub title: String,
+    pub far_clip: f32,
+}
+
+impl Default for FpsPresentation {
+    fn default() -> Self {
+        Self {
+            title: "MASHUP · CS mechanics lab".into(),
+            far_clip: 500.0,
+        }
+    }
+}
+
 #[derive(Resource)]
 struct Session {
     spawn: Vec3,
@@ -183,17 +211,37 @@ struct Impact {
 pub struct FirstPersonGamePlugin;
 impl Plugin for FirstPersonGamePlugin {
     fn build(&self, app: &mut App) {
+        let map = app.world().resource::<FpsMap>();
+        let spawn = FpsSpawn { position: map.spawn, yaw: map.yaw };
+        app.insert_resource(spawn)
+            .add_systems(Startup, load_legacy_map)
+            .add_plugins(FirstPersonGameplayPlugin::<FpsMap>::default());
+    }
+}
+
+/// Reuses the FPS systems with a composition-owned, live collision resource.
+pub struct FirstPersonGameplayPlugin<W: Resource + CollisionWorld>(PhantomData<W>);
+
+impl<W: Resource + CollisionWorld> Default for FirstPersonGameplayPlugin<W> {
+    fn default() -> Self { Self(PhantomData) }
+}
+
+impl<W: Resource + CollisionWorld> Plugin for FirstPersonGameplayPlugin<W> {
+    fn build(&self, app: &mut App) {
         app.add_plugins(FirstPersonControllerPlugin)
+            .init_resource::<FpsPresentation>()
             .insert_resource(Time::<Fixed>::from_hz(100.0))
             .insert_resource(GlobalAmbientLight {
                 brightness: 600.0,
                 ..default()
             })
             .insert_resource(ClearColor(Color::srgb(0.3, 0.45, 0.65)))
-            .add_systems(Startup, setup)
+            .add_systems(Update, setup::<W>.run_if(needs_session))
             .add_systems(
                 FixedUpdate,
-                (simulate, shoot).chain().in_set(CharacterSystems::Movement),
+                (simulate::<W>, shoot::<W>).chain()
+                    .in_set(CharacterSystems::Movement)
+                    .run_if(session_exists),
             )
             .add_systems(
                 Update,
@@ -205,25 +253,37 @@ impl Plugin for FirstPersonGamePlugin {
                     shortcuts,
                     expire_impacts,
                 )
-                    .chain(),
+                    .chain()
+                    .run_if(session_exists),
             );
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    options: Res<FpsOptions>,
-    map: Res<FpsMap>,
-    server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let spawn = map.spawn;
-    let yaw = map.yaw;
+fn needs_session(spawn: Option<Res<FpsSpawn>>, session: Option<Res<Session>>) -> bool {
+    spawn.is_some() && session.is_none()
+}
+
+fn session_exists(session: Option<Res<Session>>) -> bool { session.is_some() }
+
+fn load_legacy_map(mut commands: Commands, options: Res<FpsOptions>, server: Res<AssetServer>) {
     commands.spawn((
         Name::new("Imported map"),
         WorldAssetRoot(server.load(format!("{}#Scene0", options.map))),
     ));
+}
+
+fn setup<W: Resource + CollisionWorld>(
+    mut commands: Commands,
+    options: Res<FpsOptions>,
+    world: Res<W>,
+    spawn_point: Res<FpsSpawn>,
+    presentation: Res<FpsPresentation>,
+    server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let spawn = spawn_point.position;
+    let yaw = spawn_point.yaw;
     let mut config = if options.half_life {
         MovementConfig::half_life()
     } else {
@@ -262,7 +322,7 @@ fn setup(
     let projection = Projection::from(PerspectiveProjection {
         fov: 2.0 * (0.75_f32).atan(),
         near: 0.01,
-        far: 500.0,
+        far: presentation.far_clip,
         ..default()
     });
     let camera = commands
@@ -297,7 +357,7 @@ fn setup(
     for index in 0..3 {
         let center =
             spawn + front * (5.0 + index as f32 * 2.0) + Vec3::X * (index as f32 - 1.0) * 1.0;
-        if map.collision.trace(center, center, Hull::Point).start_solid {
+        if world.trace(center, center, Hull::Point).start_solid {
             continue;
         }
         commands.spawn((
@@ -451,9 +511,9 @@ fn attach_view_model(
     commands.entity(ready.entity).remove::<PendingViewModel>();
 }
 
-fn simulate(
+fn simulate<W: Resource + CollisionWorld>(
     time: Res<Time<Fixed>>,
-    world: Res<FpsMap>,
+    world: Res<W>,
     options: Res<FpsOptions>,
     mut session: ResMut<Session>,
     mut bodies: Query<(
@@ -495,7 +555,7 @@ fn simulate(
             &mut body,
             &input,
             &config,
-            &world.collision,
+            &*world,
             time.delta_secs(),
         );
         transform.translation = body.position;
@@ -528,10 +588,10 @@ fn ray_box(start: Vec3, direction: Vec3, center: Vec3, half: Vec3) -> Option<f32
 }
 
 #[allow(clippy::too_many_arguments)] // Independent Bevy system parameters.
-fn shoot(
+fn shoot<W: Resource + CollisionWorld>(
     mut commands: Commands,
     time: Res<Time<Fixed>>,
-    world: Res<FpsMap>,
+    world: Res<W>,
     mut session: ResMut<Session>,
     mut bodies: Query<(&PlayerCommand, &MovementState, &mut WeaponInventory<CsGun>, &mut CsPunch)>,
     mut targets: Query<(Entity, &mut PracticeTarget)>,
@@ -576,7 +636,7 @@ fn shoot(
                     let direction =
                         (rotation * Vec3::new(deviation.x, deviation.y, -1.0)).normalize();
                     let start = body.position + Vec3::Y * body.eye_height();
-                    let trace = world.collision.trace(
+                    let trace = world.trace(
                         start,
                         start + direction * gun.range(),
                         Hull::Point,
@@ -676,6 +736,7 @@ fn update_camera(
 }
 fn update_hud(
     session: Res<Session>,
+    presentation: Res<FpsPresentation>,
     bodies: Query<(&MovementState, &WeaponInventory<CsGun>)>,
     mut hud: Query<&mut Text, With<Hud>>,
 ) {
@@ -686,7 +747,8 @@ fn update_hud(
     let weapon = &equipped.state;
     for mut text in &mut hud {
         text.0 = format!(
-            "MASHUP · CS mechanics lab\n{}{}   {} / {}   {}\nSpeed {:.1} u/s  ·  {}  ·  {}  ·  100 Hz\nWASD / mouse  ·  Space / wheel jump  ·  Ctrl crouch  ·  Shift walk\nLMB fire  ·  RMB silencer  ·  R reload  ·  1 / 2 slots  ·  Q last  ·  [ / ] cycle\nF5 respawn  ·  F12 screenshot  ·  Esc release mouse  ·  F10 quit{}",
+            "{}\n{}{}   {} / {}   {}\nSpeed {:.1} u/s  ·  {}  ·  {}  ·  100 Hz\nWASD / mouse  ·  Space / wheel jump  ·  Ctrl crouch  ·  Shift walk\nLMB fire  ·  RMB silencer  ·  R reload  ·  1 / 2 slots  ·  Q last  ·  [ / ] cycle\nF5 respawn  ·  F12 screenshot  ·  Esc release mouse  ·  F10 quit{}",
+            presentation.title,
             equipped.profile.kind.name(),
             if equipped.profile.silenced { " (silenced)" } else { "" },
             weapon.magazine,
