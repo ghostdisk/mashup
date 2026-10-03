@@ -24,7 +24,7 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 | Traffic | Directed meter-space lanes/routes, bounded population and autonomous `TrafficDriverIntent`; policy harness on main | Vehicles consumes driver intent and reports physical speed. Cross-route conflicts, collision sensing and GTA road extraction remain open; see [traffic.md](traffic.md) |
 | NPC AI | `AiPlugin<W>` writes `PlayerCommand` for explicitly marked actors and moves them through the shared solver; perception, local detours and contact damage prototype on main | Global navigation, shared damage events, weapon combat and animation binding remain open; dev build is pending. See [ai.md](ai.md) |
 | Asset/game discovery | Read-only `Catalog` adapts GoldSrc sidecars and GTA packages into game-namespaced `AssetRecord`s; source-game registry and inspector on main | Canonical payloads stay importer-owned; capabilities describe discovered content, not universal runtime support. See [assets.md](assets.md) and [games.md](games.md) |
-| Vehicles | Shared `Vehicle`, `VehicleState`, `DriverIntent`, `Occupancy`, AABB collision seam and fixed-step simulator; box-car prototype | Reuse intent for player/traffic; handling profiles and model presentation remain replaceable. See [vehicles.md](vehicles.md) |
+| Vehicles | Shared `Vehicle`, `VehicleState`, `DriverIntent`, `Occupancy`, AABB collision seam and fixed-step simulator; box-car source checkpoint, dev build pending | Reuse intent for player/traffic/VR; controller adapter separation and collision capability handling remain open. See [vehicles.md](vehicles.md) |
 | World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
 
 This table is a status register, not a claim that planned systems already exist.
@@ -41,6 +41,15 @@ steering, throttle, brake, target speed and a lookahead point; it never moves a
 vehicle transform. The Vehicles and Traffic workers are aligning this prototype
 with the shared vehicle driver API before integration. Vehicle-reported speed
 feeds following policy; a policy checkpoint alone does not provide driving.
+
+The vehicle API is now on main; Traffic's dependent adapter is in progress.
+Intent adapters should run in `CharacterSystems::Intent`, before simulation in
+`CharacterSystems::Movement`, with one active writer per vehicle. The initial
+simulator also installs keyboard input during Movement; Vehicles is separating
+that adapter so it cannot overwrite VR or AI intent. `Occupancy.driver` retains
+the character entity; body placement, active movement and camera handoffs must
+be completed by the consuming composition. The current box-car demonstration
+does not yet establish integration with the CS walking controller.
 
 NPC perception selects explicit `AiTarget` bodies and uses world traces for line
 of sight. `AiActor` marks bodies whose intent and movement belong to AI; a

@@ -23,6 +23,14 @@ Movement and hitscan already consume it independently of rendered geometry.
 collision is ready. The legacy `FirstPersonGamePlugin` wraps this same gameplay
 with `FpsMap`/BSP and GLB rendering, preserving the existing CS lab.
 
+`CollisionWorld::trace_aabb` now accepts arbitrary axis-aligned body half extents
+in meters. `MeshCollisionWorld` and the floor backend implement that sweep;
+the trait's legacy default approximates it with `Hull::Standing` and ignores
+the requested dimensions. That fallback is not full vehicle-body collision.
+Compositions must account for backend shape support before enabling vehicles;
+explicit capability handling is being coordinated with Vehicles. A rotating
+body also needs conservative world-space bounds for an axis-aligned sweep.
+
 The GTASA port now contributes an initial package/import/runtime prototype. The supplied local installation is
 `C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto San Andreas`.
 The importer reads its VER2 IMG, IDE, text/binary IPL, static DFF, D3D9 TXD and
@@ -53,6 +61,12 @@ Lineage 2 has a terrain-tile adapter into the same v1 mesh/chunk/collision
 package, but actual client extraction and source elevation calibration remain
 pending. Neither checkpoint adds a new global format or collision capability.
 See [lineage2.md](lineage2.md) for its current import limitations.
+
+GTA now exports finite water base surfaces through existing world meshes and
+separate chunk identities, retaining source parameters in provenance. These
+surfaces add rendering geometry only; swimming, buoyancy, waves and reflections
+remain separate game/runtime features. The refreshed full-world import and
+rendered coverage are still pending validation.
 
 ## Why a custom format
 
