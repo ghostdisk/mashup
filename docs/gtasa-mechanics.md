@@ -172,6 +172,25 @@ The ordinary `objs` parser selects model allocation based on flag `0x1000`,
 not a textual `lod` name check. This must be reconciled with the observed IPL
 relationships and renderer behavior before replacing the initial name heuristic.
 
+Further MCP inspection of `005cf290` and its helper `00542500` clarifies why the
+postprocessing cannot be reduced to an IDE flag or model-name rule. Before
+handling an entity's outgoing LOD link, entities with linked children or a
+draw distance times camera LOD scale above 300 call `00542500`. That helper sets
+entity bits `0x10100`, clears entity bit 0 and sets model-info bit `0x20` at
+offset `0x12`. The later multi-child branch reads that runtime model-info bit:
+when clear it decrements the parent's child count and removes the outgoing
+link; when set it assigns the child model a draw distance of 400. A sole-child
+parent instead receives entity bit `0x100000` when present on the child, and
+can inherit the child's COL object. These are shared model mutations and
+ordered entity-processing effects; the raw imported links remain unchanged
+until loading order and streamed-entity processing are reproduced.
+
+The IDE flag setters `005cdb20` and `005cdba0` do not map source flags directly
+to that runtime model bit `0x20`. This rules out treating it as source IDE bit
+`0x20`. Allocation helpers `004d0700`, `004d0740` and `004d07c0` use separate
+model pools and initialize through virtual method offset `0x18`; their pool
+addresses alone do not establish the desired rendered LOD class.
+
 Initial water-loader research also located `00724d10` through the installed
 `DATA\\water.dat` string. MCP decompilation confirms four vertices with seven
 floats each and an optional integer for quad records, a three-vertex fallback,
