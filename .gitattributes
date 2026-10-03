@@ -1,0 +1,4 @@
+* text=auto eol=lf
+
+# Preserve whitespace in this upstream license notice.
+third_party/bevy/FiraMono-LICENSE -whitespace

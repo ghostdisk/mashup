@@ -1,0 +1,21 @@
+[package]
+name = "mashup"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "A modular sandbox for locally imported game assets and interchangeable mechanics"
+license = "MIT"
+publish = false
+exclude = ["assets/imported/**", "user_data/**"]
+
+[dependencies]
+bevy = { version = "0.19.1", default-features = false, features = ["3d", "ui"] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -1,0 +1,12 @@
+/target
+
+# Player-owned source files and converted content must stay local.
+/assets/imported/
+/user_data/
+
+# Machine-local development files.
+/.idea/
+/.vscode/
+*.log
+
+ghidra
