@@ -36,3 +36,4 @@ impl Plugin for MashupPlugin {
         );
     }
 }
+pub mod ai;

@@ -8,3 +8,4 @@ pub mod gtasa_cstrike;
 pub mod sandbox;
 #[cfg(feature = "vr")]
 pub mod vr_room;
+pub mod npc_demo;

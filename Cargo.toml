@@ -65,3 +65,7 @@ opt-level = 3
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[[bin]]
+name = "mashup-npc"
+path = "src/bin/mashup-npc.rs"
