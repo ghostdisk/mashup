@@ -2,7 +2,7 @@
 use super::{Bounds, MapPackage, Result, payload_path, read_json, rotation, vec3, mesh::MeshData, collision::MeshCollisionWorld};
 use bevy::{asset::RenderAssetUsages, image::{ImageAddressMode,ImageLoaderSettings,ImageSampler,ImageSamplerDescriptor},mesh::{Indices,PrimitiveTopology},prelude::*};
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{collections::{BTreeMap, BTreeSet}, marker::PhantomData};
 use super::presentation::{PlacedInstanceId, PlacedModelId, PlacedModelLod, PlacedSourceMetadata};
 
 /// Startup policy for optional render-only model classes. LOD geometry remains
@@ -15,6 +15,25 @@ impl Default for MapRuntimeConfig { fn default() -> Self { Self { materialize_lo
 pub struct StreamingFocus {pub position:Vec3,pub radius:f32}
 #[derive(SystemSet,Debug,Clone,PartialEq,Eq,Hash)]
 pub enum MapSystems {Stream}
+
+/// Resource seam for package collision residency. A composition can implement
+/// this on its stable active-world resource and delegate to its package backend.
+pub trait MapCollisionSink: Resource {
+    /// Return false while another world backend is active and this package is not
+    /// the composition's current render/collision world.
+    fn package_streaming_enabled(&self) -> bool { true }
+    fn begin_chunk(&mut self, id: &str);
+    fn unload_chunk(&mut self, id: &str);
+    fn add_instance(&mut self, id: &str, payload: &Value, translation: Vec3, rotation: Quat) -> Result<()>;
+}
+
+impl MapCollisionSink for MeshCollisionWorld {
+    fn begin_chunk(&mut self, id: &str) { MeshCollisionWorld::begin_chunk(self, id); }
+    fn unload_chunk(&mut self, id: &str) { MeshCollisionWorld::unload_chunk(self, id); }
+    fn add_instance(&mut self, id: &str, payload: &Value, translation: Vec3, rotation: Quat) -> Result<()> {
+        MeshCollisionWorld::add_instance(self, id, payload, translation, rotation)
+    }
+}
 struct RuntimeModel {parts:Vec<(Handle<Mesh>,Handle<StandardMaterial>)>,collision:Option<Value>,lod:bool}
 struct ResidentChunk {entities:Vec<Entity>,models:BTreeSet<String>}
 #[derive(Resource)]
@@ -75,9 +94,16 @@ impl MapRuntime {
     }
 }
 pub struct MapRuntimePlugin;
-impl Plugin for MapRuntimePlugin {fn build(&self,app:&mut App){app.init_resource::<MapRuntimeConfig>().add_systems(Update,stream.in_set(MapSystems::Stream));}}
+impl MapRuntimePlugin {
+    /// Build the same package streamer against a composition-owned collision resource.
+    pub fn with_collision_sink<W: MapCollisionSink>() -> MapRuntimePluginWith<W> { MapRuntimePluginWith(PhantomData) }
+}
+/// `MapRuntimePlugin` with a caller-owned package collision resource.
+pub struct MapRuntimePluginWith<W: MapCollisionSink>(PhantomData<fn() -> W>);
+impl Plugin for MapRuntimePlugin {fn build(&self,app:&mut App){app.init_resource::<MapRuntimeConfig>().add_systems(Update,stream::<MeshCollisionWorld>.in_set(MapSystems::Stream));}}
+impl<W: MapCollisionSink> Plugin for MapRuntimePluginWith<W> {fn build(&self,app:&mut App){app.init_resource::<MapRuntimeConfig>().add_systems(Update,stream::<W>.in_set(MapSystems::Stream));}}
 
-fn load_chunk(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runtime:&mut MapRuntime,config:MapRuntimeConfig,collision:&mut MeshCollisionWorld,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<ResidentChunk> {
+fn load_chunk<W:MapCollisionSink>(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runtime:&mut MapRuntime,config:MapRuntimeConfig,collision:&mut W,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<ResidentChunk> {
     let id=descriptor["id"].as_str().ok_or("chunk missing id")?;let chunk=package.chunk(descriptor)?;
     let instances=chunk["instances"].as_array().unwrap();let mut model_ids=BTreeSet::new();
     for instance in instances {let model=instance["model"].as_str().ok_or("instance missing model")?;runtime.load_model(model,package,config.materialize_lods,server,meshes,materials)?;model_ids.insert(model.into());vec3(&instance["translation"])?;rotation(&instance["rotation"])?;}
@@ -101,7 +127,8 @@ fn load_chunk(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runti
 }
 
 #[allow(clippy::too_many_arguments)]
-fn stream(mut commands:Commands,time:Res<Time>,package:Res<MapPackage>,focus:Res<StreamingFocus>,config:Res<MapRuntimeConfig>,mut runtime:ResMut<MapRuntime>,mut collision:ResMut<MeshCollisionWorld>,server:Res<AssetServer>,mut meshes:ResMut<Assets<Mesh>>,mut materials:ResMut<Assets<StandardMaterial>>) {
+fn stream<W:MapCollisionSink>(mut commands:Commands,time:Res<Time>,package:Res<MapPackage>,focus:Res<StreamingFocus>,config:Res<MapRuntimeConfig>,mut runtime:ResMut<MapRuntime>,mut collision:ResMut<W>,server:Res<AssetServer>,mut meshes:ResMut<Assets<Mesh>>,mut materials:ResMut<Assets<StandardMaterial>>) {
+    if !collision.package_streaming_enabled() {return;}
     runtime.elapsed+=time.delta_secs();if runtime.elapsed<0.15 {return;}runtime.elapsed=0.0;
     let query=Bounds{min:focus.position-Vec3::new(focus.radius,2500.0,focus.radius),max:focus.position+Vec3::new(focus.radius,2500.0,focus.radius)};
     let chunks=package.manifest["chunks"].as_array().unwrap();

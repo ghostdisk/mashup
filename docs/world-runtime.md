@@ -66,3 +66,15 @@ materialized root's instance ID, model ID, detailed/LOD classification, raw
 explicitly hidden roots count as hidden. The report does not imply render-policy
 selection or GPU visibility. The inspector consumes a package in place and does
 not import, copy, or rewrite its world data.
+
+## Composition-owned collision resource
+
+`MapRuntimePlugin` continues to use `MeshCollisionWorld` directly. A composition
+that keeps one stable active-world resource can instead install
+`MapRuntimePlugin::with_collision_sink::<MyWorldCollision>()`. Its resource must
+implement `MapCollisionSink`, delegating `begin_chunk`, `unload_chunk`, and
+`add_instance` to the contained package collision backend. The default
+`package_streaming_enabled()` returns true; a composition can return false while
+a different backend is active, and the package streamer then skips that tick.
+The composition owns scene swaps and any package/runtime replacement. This seam
+does not change `CollisionWorld` dispatch or copy backend geometry.
