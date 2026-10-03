@@ -133,6 +133,14 @@ renderer still suppresses LOD models using its initial name heuristic.
 
 ## Evidence limits and implementation follow-through
 
+Initial water-loader research also located `00724d10` through the installed
+`DATA\\water.dat` string. MCP decompilation confirms four vertices with seven
+floats each and an optional integer for quad records, a three-vertex fallback,
+and source texture names `waterclear256`, `seabd32` and `waterwake` from the
+`particle` dictionary. The meanings of the four vertex parameters after XYZ,
+surface flags and tessellation still require investigation. No water runtime or
+swimming mechanics have been implemented from this initial observation.
+
 Decompiler output loses some x87 intrinsic arguments and sometimes infers
 incorrect types or return values. For example, `0054c500` appears as `void` in
 pseudocode although callers consume its x87 result. Assembly and constants must

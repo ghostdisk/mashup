@@ -33,8 +33,9 @@ runtime package. Runtime packages must be inside this checkout's `assets/`.
 This worktree uses its own `target/` directory. Shared Cargo outputs were found
 to reuse library artifacts across divergent agent worktrees; preserve existing
 shared artifacts and other agents' running binaries.
-The shared build gate limits compiler/linker work to six logical CPUs at
-BelowNormal priority, with one Cargo job and one heavy build across agents.
+The shared build gate now limits compiler/linker work to eight logical CPUs at
+BelowNormal priority, with two Cargo jobs and one heavy build across agents.
+Invocations already running under the previous six-CPU/one-job cap finish there.
 
 For an intermediate Grove Street region, import with `--region-radius 550`.
 The center is currently GTA `(2490, -1670, 13)`. Region selection uses horizontal
