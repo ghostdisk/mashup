@@ -30,7 +30,7 @@ fn main() {
         .add_plugins((MashupPlugin, TrafficPlugin, VehicleSimulationPlugin::<TrafficWorld>::default()))
         .insert_resource(TrafficWorld)
         .insert_resource(RoadNetwork { lanes })
-        .insert_resource(TrafficPopulation { desired: 8, routes: vec![Route { lanes: vec![a, b, c, d], closed_loop: true }], ..default() })
+        .insert_resource(TrafficPopulation::new(8, vec![Route { lanes: vec![a, b, c, d], closed_loop: true }]))
         .insert_resource(TrafficBudget { max_agents: 12, spawn_per_tick: 1, despawn_distance_m: 180.0 })
         .insert_resource(TrafficObserver(Vec3::ZERO))
         .add_systems(Startup, setup)

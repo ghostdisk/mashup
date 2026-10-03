@@ -80,6 +80,10 @@ pub struct TrafficPopulation {
     next_route: usize,
 }
 
+impl TrafficPopulation {
+    pub fn new(desired: usize, routes: Vec<Route>) -> Self { Self { desired, routes, next_route: 0 } }
+}
+
 /// Optional world-space observer used for bounded streaming/despawning.
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct TrafficObserver(pub Vec3);
