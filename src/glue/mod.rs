@@ -4,6 +4,7 @@
 pub mod asset_viewer;
 pub mod desktop;
 pub mod first_person;
+pub mod gtasa_cstrike;
 pub mod sandbox;
 #[cfg(feature = "vr")]
 pub mod vr_room;

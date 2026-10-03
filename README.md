@@ -75,6 +75,17 @@ Exact 1:1 source-game equivalence remains under validation.
 See [the mechanics guide](docs/cs16-mechanics.md) for import commands, offline
 reference tooling, architecture, observed rules, checks, and fidelity gaps.
 
+## Play San Andreas with CS mechanics
+
+```powershell
+cargo run --locked --bin mashup-gtasa-cstrike
+```
+
+This separate composition streams the custom GTA world package and reuses CS
+movement, weapons and first-person presentation. It starts on Grove Street after
+the road collision has loaded. See [the mashup guide](docs/gtasa-cstrike.md) for
+imports, controls and current limits. Both standalone game ports remain independent.
+
 ## Optional VR mashup
 
 The library (`src/lib.rs`) is the shared engine. Concrete mashups are binaries
@@ -103,6 +114,8 @@ src/
   importers/goldsrc/         MDL v10, BSP v30, WAD3 readers and GLB exporters
   bin/mashup-import.rs        Explicit offline import CLI
   bin/mashup-cstrike.rs       Dedicated first-person CS composition
+  bin/mashup-gtasa.rs         Clean GTA importer and world inspector
+  bin/mashup-gtasa-cstrike.rs  GTA world with CS gameplay
   bin/mashup-vr.rs            Concrete optional VR mashup binary
   vr/                        Tracking poses, OpenXR adapter, avatar IK and pose copy
   glue/vr_room.rs             VR character pose-checking composition
@@ -117,8 +130,8 @@ src/
       importers/             Counter-Strike 1.6 converter entry points
       game/                  CS weapon behavior profiles
     gtasa/
-      importers/             Local asset conversion (placeholder)
-      game/                  Independently written mechanics (placeholder)
+      importers/             IMG/IDE/IPL, DFF/TXD and COL world conversion
+      game/                  GTA world inspector and future GTA mechanics
 assets/
   imported/                  Player-owned converted content (ignored by Git)
 user_data/                   Local source files, staging and caches (ignored by Git)

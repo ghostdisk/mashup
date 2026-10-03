@@ -18,8 +18,10 @@ movement and CS weapon behavior.
 
 `CollisionWorld` in `src/collision.rs` is the existing shared behavioral boundary.
 Movement and hitscan already consume it independently of rendered geometry.
-The current first-person glue chooses `BspCollision` concretely, so composing a
-different map backend still needs an integration seam there.
+`FirstPersonGameplayPlugin<W>` now accepts any resource implementing
+`CollisionWorld`. The caller owns world rendering and inserts `FpsSpawn` once
+collision is ready. The legacy `FirstPersonGamePlugin` wraps this same gameplay
+with `FpsMap`/BSP and GLB rendering, preserving the existing CS lab.
 
 The GTASA port now contributes an initial package/import/runtime prototype. The supplied local installation is
 `C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto San Andreas`.
@@ -29,10 +31,18 @@ See [gtasa-import.md](gtasa-import.md) for operational coverage and fidelity gap
 Global format ownership remains with the coordinator; this is GTA-driven input
 to that implementation, not a completed cross-game schema or BSP migration.
 
-The first cross-game milestone is the San Andreas map with CS movement and
-shooting. This is coordinator-owned integration in a separate mashup composition;
+The first cross-game milestone runs in `mashup-gtasa-cstrike`: the San Andreas
+map with CS movement and shooting. This is coordinator-owned integration;
 `mashup-gtasa` remains a clean GTA implementation. The mixed composition must reuse
 the CS mechanics and shared controller/collision contracts.
+
+The mixed composition uses `MapRuntimePlugin` and `MeshCollisionWorld`, waits
+for spawn-area collision, then finds a walkable standing-hull position on the
+source geometry. Streaming follows the player's body. The ordinary Grove Street
+capture showed 23 resident chunks, 3,185 detailed world instances, 79,697 collision
+primitives, grounded support and no body overlap or failed chunks. This is a
+playable region checkpoint; full-world presentation remains port work in progress.
+See [gtasa-cstrike.md](gtasa-cstrike.md) for commands and limits.
 
 ## Why a custom format
 

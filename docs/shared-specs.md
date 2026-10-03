@@ -46,7 +46,7 @@ semantics and their limits are described in [weapons.md](weapons.md).
 
 | Chat | Workspace | Dedicated binary | Work |
 | --- | --- | --- | --- |
-| Coordinator | Primary `D:\Mashup` checkout | `mashup` | Product direction, living specs, ownership, integration support, continuation of unfinished game work |
+| Coordinator | Primary `D:\Mashup` checkout | `mashup`, `mashup-gtasa-cstrike` | Product direction, living specs, cross-game composition, ownership, continuation of unfinished game work |
 | CS | Own Git worktree | `mashup-cstrike` | CS reimplementation; next milestone is additional weapons and weapon selection/switching |
 | GTASA | Own Git worktree | `mashup-gtasa` | Clean San Andreas reimplementation; first import the main map, then implement GTA features |
 
@@ -55,8 +55,10 @@ sidebar chats and their own worktrees/binaries. Each uses game-specific imported
 assets and runtime output destinations. Share libraries and interfaces, not
 executable ownership or mutable captures/log files.
 
-The coordinator owns the first GTA-world/CS-mechanics composition and shared map
-format design. A dedicated agent may take either self-contained global task in
+The first GTA-world/CS-mechanics composition is playable on the imported Grove
+Street region; see [gtasa-cstrike.md](gtasa-cstrike.md). Its caller-owned collision
+and spawn use the generic first-person gameplay seam. The coordinator owns this
+composition and shared map format design. A dedicated agent may take either task in
 its own worktree, with a separate binary for a runnable mashup. The initial GTA
 format prototype already underway is allowed to inform this first format revision;
 future assignments must preserve the port/global responsibility split.

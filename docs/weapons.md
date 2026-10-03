@@ -67,8 +67,10 @@ profile action names. Model generations discard stale asynchronous loads, so a
 rapid equip sequence does not leave multiple visible guns. Imported clip
 durations control playback independently of readiness/reload timers. Controllers,
 movement, inventory and gun profiles can be reused without this renderer. The
-current `FpsMap`/`FirstPersonGamePlugin` world-loading seam is still GoldSrc
-specific; cross-game composition owns its eventual backend adaptation.
+generic `FirstPersonGameplayPlugin<W>` accepts a caller-owned `CollisionWorld`
+resource and ready `FpsSpawn`. The legacy `FirstPersonGamePlugin` adds GoldSrc
+world loading. `mashup-gtasa-cstrike` uses the same movement, inventory, profiles
+and presentation against the GTA primitive backend, without duplicating weapons.
 
 ## Local behavior evidence and limits
 

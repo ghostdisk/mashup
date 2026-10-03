@@ -31,6 +31,7 @@ must work in its own Git worktree, including agents created as independent chats
 Current binary ownership:
 
 - `mashup`: coordinator-owned shared launcher.
+- `mashup-gtasa-cstrike`: coordinator-owned GTA-world/CS-mechanics composition.
 - `mashup-cstrike`: the `CS` agent's Counter-Strike port.
 - `mashup-gtasa`: the `GTASA` agent's clean San Andreas port. Its first milestone
   is the main map import and runtime pipeline, followed by GTA-specific features.
