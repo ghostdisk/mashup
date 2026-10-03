@@ -68,3 +68,14 @@ Cargo documents the separate intermediate build directory and workspace-wrapper
 hashing in its [configuration reference](https://doc.rust-lang.org/cargo/reference/config.html).
 Windows exposes physical-core masks through
 [GetLogicalProcessorInformation](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformation).
+
+## Observed verification
+
+The native policy query reported eight physical cores, six selected physical
+cores, twelve logical CPUs and affinity mask `4095` (`0xfff`). The coordinator's
+first shared-cache `mashup-gtasa-cstrike` dev build completed successfully in
+1 minute 32 seconds. Verbose Cargo output marked the full Bevy graph, including
+`bevy_pbr`, Fresh and compiled the application library/binary only. The rustc
+command used the central versioned wrapper plus the coordinator's distinct
+workspace wrapper, and wrote final output to its private target. No game window
+was launched and no tests, formatters or linters were run.
