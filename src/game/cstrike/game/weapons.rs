@@ -2,6 +2,23 @@
 use crate::{game::hl::game::movement::SOURCE_UNIT, weapon::WeaponConfig};
 use bevy::prelude::*;
 
+/// CS player bullets add two uniform samples per spread axis, without the
+/// rejection used for non-player bullets. The generator is an original interim
+/// approximation; this seed seam can accept recorded command seeds later.
+pub fn sample_spread(seed: u32, spread: f32) -> Vec2 {
+    let mut state = seed.wrapping_add(0x9e37_79b9);
+    state = (state ^ (state >> 16)).wrapping_mul(0x85eb_ca6b);
+    state = (state ^ (state >> 13)).wrapping_mul(0xc2b2_ae35);
+    state = (state ^ (state >> 16)).max(1);
+    let mut uniform = || {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        (state >> 8) as f32 / 16_777_216.0 - 0.5
+    };
+    Vec2::new(uniform() + uniform(), uniform() + uniform()) * spread
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WeaponKind {
     Ak47,

@@ -5,7 +5,7 @@ use crate::{
     collision::{CollisionWorld, Hull},
     controller::first_person::{FirstPersonController, FirstPersonControllerPlugin},
     game::{
-        cstrike::game::weapons::{CsGun, CsPunch, WeaponKind},
+        cstrike::game::weapons::{self, CsGun, CsPunch, WeaponKind},
         hl::game::{
             bsp_collision::BspCollision,
             movement::{self, MovementConfig, MovementState, SOURCE_UNIT},
@@ -629,10 +629,8 @@ fn shoot<W: Resource + CollisionWorld>(
                         input.pitch + punch.degrees.x.to_radians(),
                         0.0,
                     );
-                    // Independent deterministic spread sampler; source RNG matching is future validation.
-                    let seed = weapon.serial as f32;
-                    let deviation =
-                        Vec2::new((seed * 12.9898).sin(), (seed * 78.233).sin()) * spread;
+                    // Source distribution; generator/command-seed matching is still approximate.
+                    let deviation = weapons::sample_spread(weapon.serial as u32, spread);
                     let direction =
                         rotation * Vec3::new(deviation.x, deviation.y, -1.0);
                     let start = body.position + Vec3::Y * body.eye_height();

@@ -118,6 +118,9 @@ call ordering; the Linux airborne inline decompilation needs further validation.
 Windows bullet tracing at `10069a30` confirms the unnormalized spread ray,
 projected falloff distance and integer damage truncation. Player spread sums four
 seeded uniform samples into two components; its exact RNG sequence remains work.
+The interim sampler follows that distribution without disk rejection, using an
+original deterministic generator and the shot serial as its seed. It replaces
+the earlier sine sampler; original command-seed/generator matching is unfinished.
 
 Exact Windows/runtime equivalence remains to be measured. Bullet sampling,
 animation-variant selection and recoil RNG are approximate. Penetration, armor,
