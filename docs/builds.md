@@ -64,6 +64,12 @@ the new budget. They must not stop another worker's process.
 Old already-running invocations retain their initial Cargo job count; future
 invocations use the new policy. Games launched afterward are not CPU-capped.
 
+The helper prints its own PID, workspace and command at startup. Cancel through
+the recorded launch session. Global process listings do not establish ownership;
+manual termination requires exact owned binary, parent ancestry from the helper
+and start-time verification. A single visible Cargo PID may belong to a different
+worker. Do not terminate it merely because your own session is waiting.
+
 Cargo documents the separate intermediate build directory and workspace-wrapper
 hashing in its [configuration reference](https://doc.rust-lang.org/cargo/reference/config.html).
 Windows exposes physical-core masks through

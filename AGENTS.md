@@ -81,6 +81,12 @@ build artifacts, replace its running
 executable, or stop its processes without coordinating first. Runtime captures,
 traces, and other generated outputs should also have game-specific destinations.
 
+Cancel builds through the exact tool/session recorded when starting them. Never
+infer ownership from a global Cargo/rustc listing, timestamps or the sole visible
+PID. The helper prints its PID, workspace and command. Before any manual process
+termination, verify the owned binary, ancestry from that recorded helper and
+start time; otherwise let Coordinator resolve ownership. Do not stop a peer build.
+
 Coordinate material shared-interface changes and overlapping edits with the
 affected agents and coordinator. Send a brief proposal or implementation note and
 continue independent work; routine implementation does not require coordinator

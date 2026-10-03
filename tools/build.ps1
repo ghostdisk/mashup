@@ -5,6 +5,7 @@ if ($args.Count -eq 0 -or $args[0] -notin @('build', 'prepare')) {
     throw 'Pass build --locked --bin <owned-binary>, or prepare to bootstrap the shared cache.'
 }
 $prepareOnly = $args[0] -eq 'prepare'
+Write-Output "Build owner: helper PID $PID; workspace $((Get-Location).Path); command $($args -join ' ')"
 if ($args -contains '--release') { throw 'Mashup workers use dev builds only.' }
 $env:CARGO_BUILD_JOBS = '12'
 $wrapperPath = Join-Path $PSScriptRoot 'capped-rustc-v2.exe'
