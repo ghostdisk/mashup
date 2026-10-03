@@ -78,3 +78,7 @@ unsafe_code = "forbid"
 [[bin]]
 name = "mashup-npc"
 path = "src/bin/mashup-npc.rs"
+
+[[bin]]
+name = "mashup-world-preview"
+path = "src/bin/mashup-world-preview.rs"

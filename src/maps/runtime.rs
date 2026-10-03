@@ -32,6 +32,10 @@ impl MapRuntime {
     pub fn resident_chunks(&self)->usize {self.chunks.len()}
     pub fn resident_models(&self)->usize {self.models.len()}
     pub fn failed_chunks(&self)->usize {self.failed.len()}
+    pub fn is_chunk_resident(&self,id:&str)->bool {self.chunks.contains_key(id)}
+    pub fn has_failed_chunk(&self,id:&str)->bool {self.failed.contains_key(id)}
+    pub fn resident_chunk_ids(&self)->impl Iterator<Item=&str> {self.chunks.keys().map(String::as_str)}
+    pub fn failed_chunk_ids(&self)->impl Iterator<Item=&str> {self.failed.keys().map(String::as_str)}
     fn load_model(&mut self,id:&str,package:&MapPackage,materialize_lods:bool,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<()> {
         if self.models.contains_key(id) {return Ok(());}
         let model=&package.manifest["models"][id];

@@ -48,3 +48,21 @@ detailed model collision remains loaded while its render entity is hidden. Thus
 render selection cannot remove or add collision geometry. As with all streamed
 chunks, consumers that move through the world must continue to check map
 collision readiness.
+
+## Headless package inspector
+
+`mashup-world-preview --map PATH` runs the shared runtime without creating a
+window and writes `user_data/mashup-world-preview/world-session.json`. It
+streams the package's existing chunks within 256 meters of the first spawn
+(or package-bounds center when there is no spawn), then exits when each
+intersecting chunk is resident or has failed. `--position X,Y,Z` and
+`--stream-radius METERS` select another focus. `--materialize-lods` opts into
+LOD meshes; the inspector applies no source-specific visibility policy, so LOD
+roots remain hidden. `--report PATH` selects another JSON report destination.
+
+The report records focus, package provenance, resident/failed chunks, and each
+materialized root's instance ID, model ID, detailed/LOD classification, raw
+`Visibility` value, and source metadata. Inherited roots count as visible;
+explicitly hidden roots count as hidden. The report does not imply render-policy
+selection or GPU visibility. The inspector consumes a package in place and does
+not import, copy, or rewrite its world data.
