@@ -67,7 +67,7 @@ pub fn ide(text: &str, models: &mut BTreeMap<i32, Definition>, parents: &mut BTr
             }
             let flags_index=distance_index+distance_count;
             let flags=fields.get(flags_index).ok_or("missing IDE flags")?.parse().map_err(|_| format!("invalid IDE flags {line}"))?;
-            let time_hours=if section=="tobj"{let hour=|index|fields.get(index).ok_or("missing IDE time hour")?.parse::<u8>().map_err(|_|format!("invalid IDE time hour {line}"));Some([hour(flags_index+1)?,hour(flags_index+2)?])}else{None};
+            let time_hours=if section=="tobj"{let hour=|index:usize|fields.get(index).ok_or("missing IDE time hour")?.parse::<u8>().map_err(|_|format!("invalid IDE time hour {line}"));Some([hour(flags_index+1)?,hour(flags_index+2)?])}else{None};
             models.insert(id,Definition{id,name:fields[1].into(),txd:fields[2].into(),draw_distance:draw_distances[0],draw_distances,flags,animation:if section=="anim" {Some(fields[3].into())}else{None},time_hours});
         }
     }
