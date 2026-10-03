@@ -38,7 +38,7 @@ impl Catalog {
         files.sort();
         let mut records = Vec::new();
         for path in files.iter().filter(|p| p.file_name().is_some_and(|n| n == "world.mashup.json")) {
-            read_world(&imported, path, &mut records);
+            read_world(path, &mut records);
         }
         for path in files.iter().filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().ends_with(".import.json"))) {
             read_sidecar(&imported, path, &mut records);
@@ -88,7 +88,7 @@ fn read_sidecar(imported: &Path, sidecar: &Path, out: &mut Vec<AssetRecord>) {
     out.push(AssetRecord { id, game: game.to_owned(), kind: kind.clone(), name: stem.to_owned(), source, meters_per_source_unit: scale, payload: imported.join(payload), dependencies: Vec::new(), capabilities });
 }
 
-fn read_world(imported: &Path, path: &Path, out: &mut Vec<AssetRecord>) {
+fn read_world(path: &Path, out: &mut Vec<AssetRecord>) {
     let Ok(bytes) = fs::read(path) else { return };
     let Ok(data) = serde_json::from_slice::<Value>(&bytes) else { return };
     if data["format"] != "mashup-world" { return; }
