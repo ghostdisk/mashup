@@ -40,9 +40,19 @@ The mixed composition uses `MapRuntimePlugin` and `MeshCollisionWorld`, waits
 for spawn-area collision, then finds a walkable standing-hull position on the
 source geometry. Streaming follows the player's body. The ordinary Grove Street
 capture showed 23 resident chunks, 3,185 detailed world instances, 79,697 collision
-primitives, grounded support and no body overlap or failed chunks. This is a
-playable region checkpoint; full-world presentation remains port work in progress.
+primitives, grounded support and no body overlap or failed chunks. Standing
+support is confirmed; the reported ground sticking and uphill slowdown still
+need movement confirmation after the shared fixes. Full-world presentation
+remains port work in progress.
 See [gtasa-cstrike.md](gtasa-cstrike.md) for commands and limits.
+
+GTA placement provenance now preserves source LOD links resolved against the
+parent text IPL before filtering. Coverage distinguishes unresolved links from
+targets excluded by selection; exact runtime LOD visibility is still open.
+Lineage 2 has a terrain-tile adapter into the same v1 mesh/chunk/collision
+package, but actual client extraction and source elevation calibration remain
+pending. Neither checkpoint adds a new global format or collision capability.
+See [lineage2.md](lineage2.md) for its current import limitations.
 
 ## Why a custom format
 

@@ -23,6 +23,8 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 | Items/pickups | Equipped weapon inventory exists; no general pickup/item contract yet | Separate item definitions, world instances and pickup interaction; keep source-game restrictions in profiles |
 | Vehicles | No shared vehicle implementation yet | Shared occupancy/entry/exit and driver intent as needed; vehicle assets, handling profiles, and physical simulation remain replaceable |
 | Traffic | Directed meter-space lanes/routes, bounded population and autonomous `TrafficDriverIntent`; policy harness on main | Vehicles consumes driver intent and reports physical speed. Cross-route conflicts, collision sensing and GTA road extraction remain open; see [traffic.md](traffic.md) |
+| NPC AI | `AiPlugin<W>` writes `PlayerCommand` for explicitly marked actors and moves them through the shared solver; perception, local detours and contact damage prototype on main | Global navigation, shared damage events, weapon combat and animation binding remain open; dev build is pending. See [ai.md](ai.md) |
+| Asset/game discovery | Read-only `Catalog` adapts GoldSrc sidecars and GTA packages into game-namespaced `AssetRecord`s; source-game registry and inspector on main | Canonical payloads stay importer-owned; capabilities describe discovered content, not universal runtime support. See [assets.md](assets.md) and [games.md](games.md) |
 | World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
 
 This table is a status register, not a claim that planned systems already exist.
@@ -39,6 +41,14 @@ steering, throttle, brake, target speed and a lookahead point; it never moves a
 vehicle transform. The Vehicles and Traffic workers are aligning this prototype
 with the shared vehicle driver API before integration. Vehicle-reported speed
 feeds following policy; a policy checkpoint alone does not provide driving.
+
+NPC perception selects explicit `AiTarget` bodies and uses world traces for line
+of sight. `AiActor` marks bodies whose intent and movement belong to AI; a
+composition must avoid installing a second movement writer on those actors.
+The first contact attack changes `AiHealth` directly and has no shared combat
+event contract yet. Its local obstacle probes do not provide global navigation.
+This source checkpoint has been pushed while its gated build remains pending;
+runtime NPC behavior is not yet confirmed.
 
 Weapon equipment currently lives on the body in `WeaponInventory<T>`: each entry
 owns its timing, magazine/reserve and profile. `PlayerCommand.weapon_selection`
