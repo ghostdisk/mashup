@@ -21,6 +21,16 @@ pub fn models(data: &[u8]) -> Result<BTreeMap<String, Value>> {
         let mut r = Bytes::new(model); r.position = 8; let name = name(r.take(22)?); let source_id = r.u16()?;
         let mut spheres = Vec::new(); let mut boxes = Vec::new(); let mut vertices = Vec::new(); let mut faces = Vec::new();
         let version = match magic { b"COLL" => 1, b"COL2" => 2, b"COL3" => 3, b"COL4" => 4, _ => return Err(format!("unsupported COL magic {magic:?}")) };
+        // Preserve the source broad bounds as provenance for GTA visibility.
+        // Primitive collision remains the independent payload below.
+        r.position=32;
+        let (sphere_radius,sphere_center,box_a,box_b)=if version==1 {
+            let radius=r.f32()?;let center=basis(Vec3::from_array(r.floats()?));let a=basis(Vec3::from_array(r.floats()?));let b=basis(Vec3::from_array(r.floats()?));(radius,center,a,b)
+        }else{
+            let a=basis(Vec3::from_array(r.floats()?));let b=basis(Vec3::from_array(r.floats()?));let center=basis(Vec3::from_array(r.floats()?));let radius=r.f32()?;(radius,center,a,b)
+        };
+        if sphere_radius<0.0{return Err(format!("{name}: negative source bound radius"));}
+        let source_bounds=json!({"box":{"min":box_a.min(box_b).to_array(),"max":box_a.max(box_b).to_array()},"sphere":{"center":sphere_center.to_array(),"radius":sphere_radius}});
         r.position = 72;
         if version == 1 {
             let ns = r.u32()?;
@@ -41,7 +51,7 @@ pub fn models(data: &[u8]) -> Result<BTreeMap<String, Value>> {
             for _ in 0..nv { let x=r.i16()? as f32/128.0;let y=r.i16()? as f32/128.0;let z=r.i16()? as f32/128.0;vertices.push(basis(Vec3::new(x,y,z)).to_array()); }
         }
         for face in &faces { for index in 0..3 { if face[index].as_u64().unwrap_or(u64::MAX) >= vertices.len() as u64 { return Err(format!("{name}: COL face index out of bounds")); } } }
-        models.insert(name, json!({"backend":"primitives","version":1,"source_version":version,"source_model_id":source_id,"vertices":vertices,"triangles":faces,"boxes":boxes,"spheres":spheres}));
+        models.insert(name, json!({"backend":"primitives","version":1,"source_version":version,"source_model_id":source_id,"source_bounds":source_bounds,"vertices":vertices,"triangles":faces,"boxes":boxes,"spheres":spheres}));
         position += size;
     }
     Ok(models)

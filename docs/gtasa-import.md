@@ -96,9 +96,16 @@ Source coordinates, names, model IDs, draw distances, flags, placement identitie
 interior bits and LOD indices remain available in provenance and object records.
 Model source metadata now retains all legacy draw distances and optional timed
 object `time_hours` as `[start,end]`, confirmed through the executable IDE loader.
-The primary `draw_distance` remains the first source distance. Runtime still
-needs the source clock/visibility policy; preserving hours does not yet hide
-day/night variants.
+The primary `draw_distance` remains the first source distance. The paired
+`other_time_model` source ID is retained. The GTA presentation plugin now applies
+the observed inclusive-start/exclusive-end hour rule, including midnight wrap
+and unavailable-counterpart fallback, to detailed render roots. `--hour 0..23`
+selects a frozen inspection hour, default 12. Collision remains resident when a
+render variant is hidden. This still awaits dev build/runtime confirmation;
+the sky, water color and lighting remain their fixed inspection settings.
+COL payloads preserve original broad bounds in `source_bounds`; model source
+metadata exposes `bounding_sphere` for source distance/culling research. This
+metadata does not change primitive collision queries or chunk geometry bounds.
 
 ## Prototype package and reusable boundary
 

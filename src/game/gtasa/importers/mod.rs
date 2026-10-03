@@ -59,7 +59,7 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
         if area == 13 {global_area_count+=1;}
         true
     });
-    let model_ids:BTreeSet<_>=instances.iter().map(|i|i.model).collect();let mut model_catalog=BTreeMap::new();let mut texture_catalog:BTreeMap<String,BTreeMap<String,Value>>=BTreeMap::new();
+    let time_pairs=placement::time_model_pairs(&definitions);let model_ids:BTreeSet<_>=instances.iter().map(|i|i.model).collect();let mut model_catalog=BTreeMap::new();let mut texture_catalog:BTreeMap<String,BTreeMap<String,Value>>=BTreeMap::new();
     println!("Source: {source_count} placements; {binary_files} binary IPLs; {} COL models; importing {} definitions",collisions.len(),model_ids.len());
     for (progress,id) in model_ids.iter().enumerate() {
         let Some(definition)=definitions.get(id) else {warnings.push(format!("undefined model {id}"));continue;};
@@ -98,7 +98,7 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
             let path=format!("collision/{id}.json");maps::write_json(&root.join(&path),collision)?;Some(path)
         }else{None};
         let lod=definition.name.starts_with("lod") || definition.name.contains("_lod");
-        model_catalog.insert(id.to_string(),json!({"id":format!("gtasa:model:{id}"),"name":definition.name,"mesh":mesh_path,"bounds":model_bounds.json(),"materials":materials,"collision":collision_path,"source":{"model_id":definition.id,"txd":definition.txd,"draw_distance":definition.draw_distance,"draw_distances":definition.draw_distances,"time_hours":definition.time_hours,"flags":definition.flags,"animation_dictionary":definition.animation},"lod":lod}));
+        model_catalog.insert(id.to_string(),json!({"id":format!("gtasa:model:{id}"),"name":definition.name,"mesh":mesh_path,"bounds":model_bounds.json(),"materials":materials,"collision":collision_path,"source":{"model_id":definition.id,"txd":definition.txd,"draw_distance":definition.draw_distance,"draw_distances":definition.draw_distances,"time_hours":definition.time_hours,"other_time_model":time_pairs.get(id),"bounding_sphere":collisions.get(&definition.name).map(|c|&c["source_bounds"]["sphere"]),"flags":definition.flags,"animation_dictionary":definition.animation},"lod":lod}));
         if progress.is_multiple_of(200) {println!("Models {}/{} ({})",progress+1,model_ids.len(),definition.name);}
     }
     let imported_ids:BTreeSet<_>=instances.iter().filter(|i|model_catalog.contains_key(&i.model.to_string())).map(placement::Instance::identity).collect();

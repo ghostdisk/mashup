@@ -13,9 +13,11 @@ struct WorldHud;
 struct Inspection {message:String,hit:Option<Vec3>,elapsed:f32,captured:bool}
 
 pub fn spawn(package:&MapPackage)->Result<Vec3> {vec3(&package.manifest["spawns"][0]["position"])}
+use super::world_presentation::{GtaInspectionHour,GtaWorldPresentationPlugin,GtaPresentationSystems,source_hours,source_hour_in_range};
+use crate::maps::presentation::PlacedSourceMetadata;
 pub struct GtaWorldViewerPlugin;
 impl Plugin for GtaWorldViewerPlugin {
-    fn build(&self,app:&mut App){app.add_plugins(MapRuntimePlugin).init_resource::<Inspection>().insert_resource(ClearColor(Color::srgb(0.46,0.67,0.85))).insert_resource(GlobalAmbientLight{brightness:600.0,..default()}).add_systems(Startup,setup).add_systems(Update,controls.before(MapSystems::Stream)).add_systems(Update,(inspect,hud).chain().after(MapSystems::Stream));}
+    fn build(&self,app:&mut App){app.add_plugins((MapRuntimePlugin,GtaWorldPresentationPlugin)).init_resource::<Inspection>().insert_resource(ClearColor(Color::srgb(0.46,0.67,0.85))).insert_resource(GlobalAmbientLight{brightness:600.0,..default()}).add_systems(Startup,setup).add_systems(Update,controls.before(MapSystems::Stream)).add_systems(Update,(inspect,hud).chain().after(GtaPresentationSystems::Visibility));}
 }
 fn setup(mut commands:Commands,package:Res<MapPackage>,focus:Res<StreamingFocus>) {
     let position=focus.position+Vec3::Y*35.0;let yaw=package.manifest["spawns"][0]["yaw"].as_f64().unwrap_or(0.0) as f32;let pitch=-0.3;
@@ -44,7 +46,7 @@ fn controls(time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,buttons:Res<ButtonInpu
     focus.position=transform.translation;
 }
 #[allow(clippy::too_many_arguments)]
-fn inspect(mut commands:Commands,time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,buttons:Res<ButtonInput<MouseButton>>,camera:Query<(&Transform,&WorldCamera)>,world:Res<MeshCollisionWorld>,runtime:Res<MapRuntime>,package:Res<MapPackage>,options:Res<ViewerOptions>,mut inspection:ResMut<Inspection>,mut gizmos:Gizmos) {
+fn inspect(mut commands:Commands,time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,buttons:Res<ButtonInput<MouseButton>>,camera:Query<(&Transform,&WorldCamera)>,world:Res<MeshCollisionWorld>,runtime:Res<MapRuntime>,package:Res<MapPackage>,options:Res<ViewerOptions>,hour:Res<GtaInspectionHour>,timed:Query<(&PlacedSourceMetadata,&Visibility)>,mut inspection:ResMut<Inspection>,mut gizmos:Gizmos) {
     inspection.elapsed+=time.delta_secs();let Ok((transform,camera))=camera.single()else{return;};
     if buttons.just_pressed(MouseButton::Left){let end=transform.translation+transform.forward().as_vec3()*200.0;let trace=world.trace(transform.translation,end,Hull::Point);inspection.hit=(trace.fraction<1.0&&!trace.start_solid).then_some(trace.end);inspection.message=format!("Point trace: {:.1} m · normal {:?} · start solid {}",(trace.end-transform.translation).length(),trace.normal,trace.start_solid);}
     if let Some(point)=inspection.hit {gizmos.sphere(Isometry3d::from_translation(point),0.2,Color::srgb(1.0,0.25,0.1));}
@@ -52,7 +54,8 @@ fn inspect(mut commands:Commands,time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,b
     if requested {fs::create_dir_all(&options.output).expect("GTA output directory");let file=options.output.join(format!("world-{}.png",inspection.elapsed as u64));commands.spawn(Screenshot::primary_window()).observe(save_to_disk(file));inspection.captured=true;
         let pos=transform.translation;let point=world.trace(pos,pos-Vec3::Y*200.0,Hull::Point);let standing=world.trace(pos,pos-Vec3::Y*200.0,Hull::Standing);let crouching=world.trace(pos,pos-Vec3::Y*200.0,Hull::Crouching);
         let trace=|t:crate::collision::Trace|serde_json::json!({"fraction":t.fraction,"end":t.end.to_array(),"normal":t.normal.to_array(),"start_solid":t.start_solid});
-        let report=serde_json::json!({"map":package.manifest["id"],"camera":pos.to_array(),"streaming_status":runtime.status,"camera_hull":format!("{:?}",camera.hull),"resident_chunks":runtime.resident_chunks(),"resident_models":runtime.resident_models(),"instances":runtime.instance_count,"primitives":world.primitive_count(),"failed_chunks":runtime.failed_chunks(),"downward_point":trace(point),"downward_standing":trace(standing),"downward_crouching":trace(crouching)});
+        let mut timed_visible=0;let mut timed_hidden=0;let mut timed_fallback=0;for (metadata,visible) in &timed {if let Some(hours)=source_hours(metadata){if *visible==Visibility::Hidden{timed_hidden+=1;}else{timed_visible+=1;if !source_hour_in_range(hour.hour(),hours){timed_fallback+=1;}}}}
+        let report=serde_json::json!({"map":package.manifest["id"],"inspection_hour":hour.hour(),"timed_visibility":{"visible":timed_visible,"hidden":timed_hidden,"inactive_fallback":timed_fallback},"camera":pos.to_array(),"streaming_status":runtime.status,"camera_hull":format!("{:?}",camera.hull),"resident_chunks":runtime.resident_chunks(),"resident_models":runtime.resident_models(),"instances":runtime.instance_count,"primitives":world.primitive_count(),"failed_chunks":runtime.failed_chunks(),"downward_point":trace(point),"downward_standing":trace(standing),"downward_crouching":trace(crouching)});
         crate::maps::write_json(&options.output.join("world-session.json"),&report).expect("write GTA inspection report");
     }
 }

@@ -33,6 +33,17 @@ pub fn lod_links(instances:&[Instance])->Result<BTreeMap<String,String>> {
 pub fn lines(text: &str) -> impl Iterator<Item=String> + '_ {
     text.lines().map(|line| line.split('#').next().unwrap_or("").trim().to_lowercase()).filter(|line| !line.is_empty())
 }
+/// 004ce670 swaps the first _nt/_dy suffix and hashes the terminated name.
+pub fn time_model_pairs(models:&BTreeMap<i32,Definition>)->BTreeMap<i32,i32> {
+    let mut names=BTreeMap::new();
+    for (&id,model) in models.iter().filter(|(id,m)|**id>=0&&**id<20000&&m.time_hours.is_some()) {names.entry(model.name.clone()).or_insert(id);}
+    let mut pairs=BTreeMap::new();
+    for (&id,model) in models.iter().filter(|(_,m)|m.time_hours.is_some()) {
+        let other=if let Some(index)=model.name.find("_nt"){Some(format!("{}_dy",&model.name[..index]))}else{model.name.find("_dy").map(|index|format!("{}_nt",&model.name[..index]))};
+        if let Some(other)=other.and_then(|name|names.get(&name)){pairs.insert(id,*other);}
+    }
+    pairs
+}
 pub fn ide(text: &str, models: &mut BTreeMap<i32, Definition>, parents: &mut BTreeMap<String, String>) -> Result<()> {
     let mut section=String::new();
     for line in lines(text) {

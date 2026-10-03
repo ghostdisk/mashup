@@ -140,8 +140,31 @@ assign the first distance to model offset `0x18`. Timed objects additionally
 store the two hour bytes through their time-info virtual method. The importer
 now preserves the full distance list and optional `[start,end]` hours in source
 metadata. The installed data has 160 timed definitions, all in modern form;
-hour pairs commonly wrap midnight. Runtime selection still awaits the shared
-placed-entity visibility seam and source clock decisions.
+hour pairs commonly wrap midnight.
+
+Renderer paths `00569da0` and `0056a200` use hour predicate `0053aab0`. That
+predicate includes the start hour and excludes the end hour, wrapping midnight
+when end < start. Equal hours form an empty range. Inactive time models disappear
+when unpaired or when their paired model is available; otherwise they remain as
+a loading fallback. `004ce670` resolves the paired time model by swapping the
+first `_nt`/`_dy` tag and terminating the name there. The literal bytes at
+`008a4700` confirm `_dy\0_nt\0`. The importer preserves the paired source ID.
+
+`game/world_presentation.rs` applies these observed hour/fallback decisions to
+detailed render roots through the shared placed-metadata seam. Resident static
+model roots stand in for source RW-object availability; unloading/loading or an
+inspection-hour change recomputes visibility. This does not change collision
+residency. `--hour` selects a frozen inspection hour, default 12; an advancing
+source clock, sky/weather, source alpha/fade states and LOD selection remain open.
+The implementation still awaits dev build and ordinary runtime verification.
+
+`00569ab0` establishes that draw-distance limits also use the source COL sphere
+radius and camera far clip, with additional entity flags, fade intervals and LOD
+child counts. The importer now preserves the original COL broad bounds and copies
+the sphere into model source metadata instead of substituting a mesh-derived
+radius. Physical primitive queries remain unchanged. Source LOD postprocessing
+and renderer-state interpretation must be finished before using these fields for
+faithful distance switching.
 
 RTTI also identifies separate `CLodAtomicModelInfo`/`CLodTimeModelInfo` types,
 but type existence alone does not prove that main-world LOD placements use them.
