@@ -75,7 +75,9 @@ fn read_sidecar(imported: &Path, sidecar: &Path, out: &mut Vec<AssetRecord>) {
     let Ok(bytes) = fs::read(sidecar) else { return };
     let Ok(data) = serde_json::from_slice::<Value>(&bytes) else { return };
     let Ok(rel) = sidecar.strip_prefix(imported) else { return };
-    let mut payload = rel.to_owned(); payload.set_extension("glb");
+    let Some(sidecar_name) = rel.file_name().and_then(|name| name.to_str()) else { return };
+    let Some(asset_name) = sidecar_name.strip_suffix(".import.json") else { return };
+    let payload = rel.with_file_name(format!("{asset_name}.glb"));
     let Some(game) = rel.components().next().and_then(|c| c.as_os_str().to_str()) else { return };
     let stem = payload.file_stem().and_then(|s| s.to_str()).unwrap_or("asset");
     let kind = data["kind"].as_str().unwrap_or("model").to_owned();
