@@ -19,16 +19,19 @@ threads, but they execute only on the allowed CPUs. Dev builds only.
 The previous single queue let an optional CEF feature graph delay every worker.
 The helper now allows one core and one HTML invocation concurrently, each with
 six jobs on the same CPU mask. `Local\MashupCoreBuild` protects the core lane;
-HTML retains `Local\MashupSharedDependencyBuild` and its existing compiled graph.
-Core tickets prioritize `mashup-demo`, then ordinary builds in arrival order,
-then optional-feature builds. Tickets include helper PID and process start time
+HTML/optional features retain `Local\MashupSharedDependencyBuild` and its existing compiled graph.
+Core tickets prioritize `mashup-demo`, then ordinary builds in arrival order.
+Tickets include helper PID and process start time
 so stale requests can be discarded without terminating processes.
 
 ## Cache and executable isolation
 
 `CARGO_BUILD_BUILD_DIR` points at ignored `D:\Mashup\user_data\build-cache-core`
 for core builds and `D:\Mashup\user_data\build-cache` for HTML builds. The helper
-routes `mashup-ui` or `html-ui` requests to HTML; other binaries use core.
+routes `mashup-ui`, `html-ui`, or explicit `--features` requests to the secondary
+lane; ordinary binaries use core. Thus VR's optional dependency graph cannot
+hold up an ordinary core build either. Lane ownership is recorded in ignored
+`user_data/build-active-<lane>.json`, including helper PID, start time and command.
 Cargo keeps compatible dependency variants there: version, features, toolchain,
 profile and compiler settings still control freshness and reuse. Dependency
 optimization/profile flags are unchanged; no profile-triggered rebuild is needed
@@ -105,3 +108,8 @@ first shared-cache `mashup-gtasa-cstrike` dev build completed successfully in
 command used the central versioned wrapper plus the coordinator's distinct
 workspace wrapper, and wrote final output to its private target. No game window
 was launched and no tests, formatters or linters were run.
+
+After the lane split, the demo worker obtained the prioritized core slot and
+reported that Bevy dependencies were reused immediately. Compilation reached its
+own source and exposed a JSON macro error, which the worker corrected for the
+next invocation. This verifies the scheduling/cache handoff, not a playable demo.

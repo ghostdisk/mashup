@@ -10,7 +10,7 @@ if ($args -contains '--release') { throw 'Mashup workers use dev builds only.' }
 # Two independent dependency lanes share the same CPU mask. Each receives six
 # compiler jobs, for at most twelve across newly launched invocations.
 $env:CARGO_BUILD_JOBS = '6'
-$htmlLane = $args -contains 'mashup-ui' -or ($args -join ' ') -match 'html-ui'
+$htmlLane = $args -contains 'mashup-ui' -or ($args -join ' ') -match 'html-ui|--features(?:=|\s)'
 $lane = if ($htmlLane) { 'html' } else { 'core' }
 $wrapperPath = Join-Path $PSScriptRoot 'capped-rustc-v2.exe'
 $wrapperSource = Join-Path $PSScriptRoot 'capped-rustc.rs'
@@ -63,6 +63,7 @@ $buildGate = [Threading.Mutex]::new($false, $gateName)
 $ownsBuildGate = $false
 $ticketPath = $null
 $queueRoot = Join-Path (Split-Path $PSScriptRoot) 'user_data\build-queue-core'
+$activePath = Join-Path (Split-Path $PSScriptRoot) "user_data\build-active-$lane.json"
 try {
     if ($htmlLane) {
         Write-Output 'Waiting for HTML slot; core/demo builds use an independent cache and slot.'
@@ -102,11 +103,16 @@ try {
         $ticketPath = $null
     }
     Write-Output "Build slot granted: lane $lane; helper PID $PID; $($args -join ' '); cache $env:CARGO_BUILD_BUILD_DIR"
+    @{ pid=$PID; start=$buildHost.StartTime.ToUniversalTime().Ticks; lane=$lane; workspace=$workspaceRoot; command=($args -join ' '); acquired=[DateTime]::UtcNow.ToString('o') } |
+        ConvertTo-Json | Set-Content -LiteralPath $activePath -Encoding utf8
     & cargo @args
     $buildExitCode = $LASTEXITCODE
 } finally {
     if ($ticketPath -and (Test-Path -LiteralPath $ticketPath)) { Remove-Item -LiteralPath $ticketPath }
-    if ($ownsBuildGate) { $buildGate.ReleaseMutex() }
+    if ($ownsBuildGate) {
+        if (Test-Path -LiteralPath $activePath) { Remove-Item -LiteralPath $activePath }
+        $buildGate.ReleaseMutex()
+    }
     $buildGate.Dispose()
 }
 exit $buildExitCode

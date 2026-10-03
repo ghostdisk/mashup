@@ -19,10 +19,11 @@ work on a shared core.
   mask; the jobs do not receive separate CPU budgets. On this 8-core/16-thread
   machine the budget is six physical cores / twelve logical CPUs. Agents build with
   `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` from their
-  worktree. Core and HTML builds use independent dependency caches and mutexes,
+  worktree. Core and HTML/optional-feature builds use independent dependency caches and mutexes,
   allowing one invocation per lane without an optional CEF graph blocking every
   game. Core requests prioritize the demo checkpoint, then ordinary builds in
-  arrival order, then optional-feature builds. It bootstraps the ignored
+  arrival order. Explicit `--features` builds use the secondary lane so cold VR
+  or CEF variants cannot block ordinary core builds. It bootstraps the ignored
   native wrapper executable under the same cap. The gate is automatic;
   routine builds do not need coordinator approval.
 

@@ -75,9 +75,10 @@ for a complete central specification to implement a useful feature.
 
 Use `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` for every
 build. It allows twelve Cargo jobs total (six per lane) on physical cores minus
-two (six physical / twelve logical CPUs here) at Normal priority. Core and HTML
+two (six physical / twelve logical CPUs here) at Normal priority. Core and HTML/optional features
 each have one gated invocation and an independent dependency cache; demo core
-requests have priority over ordinary and optional-feature requests.
+requests have priority over ordinary requests. Explicit `--features` builds use
+the secondary lane so new optional dependency graphs do not block core builds.
 Dependencies share a cache within each lane; workspace-wrapper paths partition application
 crates and final executable targets remain private. No formatters, linters or tests.
 Source/research work runs in parallel while builds queue automatically. Do not
