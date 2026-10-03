@@ -153,8 +153,10 @@ and `PM_WalkMove` at `00134740` in the locally inspected CS binary: clip against
 the last unobstructed velocity, exclude the selected plane from the other-plane
 checks, and prefer the raised path on equal horizontal progress. An embedded
 edge probe no longer doubles ground friction merely because its backend reports
-fraction 1. Uphill traversal in Dust2 and the GTA/CS composition still needs a
-fresh in-game measurement after this correction.
+fraction 1. The same clip-plane and raised-step rules appear in Half-Life's
+`PM_FlyMove` at `0014f530` and `PM_WalkMove` at `00150090`, supporting their use
+in the shared HL/CS solver. Uphill traversal in Dust2 and the GTA/CS composition
+still needs a fresh in-game measurement after this correction.
 
 Synthetic tests exercise acceleration, normalized diagonal commands, held-jump
 latching, grounded/airborne crouch transitions from the first command, crouch feet
