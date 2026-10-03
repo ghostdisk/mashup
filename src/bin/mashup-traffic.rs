@@ -7,6 +7,7 @@ struct TrafficWorld;
 
 impl CollisionWorld for TrafficWorld {
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace { FloorWorld.trace(start, end, hull) }
+    fn supports_aabb(&self) -> bool { true }
     fn trace_aabb(&self, start: Vec3, end: Vec3, half_extents: Vec3) -> Trace { FloorWorld.trace_aabb(start, end, half_extents) }
 }
 
