@@ -5,7 +5,7 @@ use crate::{
     collision::{CollisionWorld, Hull},
     game::{
         cstrike::game::weapons::{CsGun, CsPunch},
-        hl::game::movement::{MovementState, SOURCE_UNIT},
+        hl::game::movement::MovementState,
     },
     glue::first_person::{FirstPersonGameplayPlugin, FpsOptions, FpsPresentation, FpsSpawn},
     maps::{
@@ -145,7 +145,7 @@ pub fn run() -> Result<(), String> {
             smoke_test: false,
         })
         .insert_resource(FpsPresentation {
-            title: "MASHUP · San Andreas × Counter-Strike".into(),
+            title: "MASHUP | San Andreas + Counter-Strike".into(),
             far_clip: 2500.0,
         })
         .insert_resource(MashupSession {
@@ -191,7 +191,7 @@ fn resolve_spawn(
     for offset in [Vec3::ZERO, Vec3::X * 2.0, Vec3::NEG_X * 2.0, Vec3::Z * 2.0, Vec3::NEG_Z * 2.0] {
         let start = session.seed + offset + Vec3::Y * 10.0;
         let end = session.seed + offset - Vec3::Y * 60.0;
-        let half = Vec3::new(16.0, 36.0, 16.0) * SOURCE_UNIT;
+        let half = Hull::Standing.half_extents();
         let query = Bounds { min: start.min(end) - half, max: start.max(end) + half };
         if !world.missing_for(query).is_empty() { pending = true; continue; }
         let trace = world.trace(start, end, Hull::Standing);

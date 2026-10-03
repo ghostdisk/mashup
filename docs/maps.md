@@ -87,10 +87,10 @@ assign global format design or BSP implementation to the GTA port.
 
 ## Runtime behavior
 
-Runtime spatial data uses meters and Bevy's established axis convention. Every
+One runtime unit is one meter, with Bevy's established axis convention. Every
 importer records and consistently applies its source scale/basis to geometry,
-collision, transforms, spawns, and metadata. Verify the GTA conversion rather
-than assuming its units match GoldSrc's. Choose chunk-local coordinates or origin
+collision, transforms, spawns, and metadata. GTA uses basis `(x,z,-y)` at scale 1.0.
+Choose chunk-local coordinates or origin
 rebasing if actual world scale reveals precision problems.
 
 Collision backends must agree on query meaning: the requested hull is a body
@@ -167,8 +167,11 @@ of the rendering mesh; original BSP support and its legacy path remain intact.
 
 `MeshCollisionWorld` implements `CollisionWorld` with continuous separating-axis
 AABB/triangle and AABB/oriented-box sweeps, and piecewise exact sphere/body
-distance sweeps. Body dimensions currently match existing standing/crouching
-Hull semantics. A 16-meter grid accelerates primitive queries. Triangle surfaces
+distance sweeps. `Hull::half_extents()` defines standing/crouching dimensions in
+meters for shared backends and spawn readiness. Sweeps project relative to the
+starting body, reject tangent/outgoing face contacts, and retain a two-millimeter
+contact margin to avoid sticking on triangle seams. A 16-meter grid accelerates
+primitive queries. Triangle surfaces
 do not imply closed solid volumes. Surface records are retained in the package,
 but shared `Trace` does not yet return surface identity.
 

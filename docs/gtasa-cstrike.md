@@ -25,6 +25,8 @@ The executable owns `target/debug/mashup-gtasa-cstrike.exe`, with captures under
 
 ## Controls and options
 
+The mouse starts released. Click inside the game to play; that capture click
+does not fire. Esc or loss of focus releases the mouse and clears movement intent.
 WASD/mouse move and look; Space/wheel jump; Ctrl crouches; Shift walks.
 Left mouse fires, R reloads, and right mouse toggles the M4A1 silencer.
 1 cycles rifles, 2 selects the pistol, Q selects the last weapon, and brackets
@@ -56,8 +58,8 @@ pending chunks. Loading is synchronous and can cause pauses. Region selection by
 instance origin can omit geometry crossing its perimeter; avoid treating the
 region's edge as complete world coverage.
 
-Movement retains CS dimensions, speeds and jump rules in meters; it is not scaled
-up for GTA's larger world. Red practice targets come from the shared FPS lab.
+One runtime unit is one meter. Body dimensions, speeds, traces and the HUD all use
+meters and seconds. Red practice targets come from the shared FPS lab.
 GTA pedestrians, traffic, vehicles, missions and interiors are not part of this
 composition yet. Weapon fidelity limits remain in [weapons.md](weapons.md).
 
@@ -65,3 +67,9 @@ The reusable integration seam is `FirstPersonGameplayPlugin<W>`, with a resource
 implementing `CollisionWorld`, `FpsSpawn` and optional `FpsPresentation`. The caller
 owns map rendering, loading/readiness and streaming focus. The legacy BSP lab and
 this GTA composition consume the same gameplay systems.
+
+The ground-contact repair rejects triangle contacts when a body is only touching
+a separating plane and moving along or away from it. Sweeps project relative to
+the body and leave a two-millimeter contact margin, preventing road triangle seams
+and large world-coordinate rounding from trapping the player. The initial capture
+above established standing support; it did not establish walking playability.

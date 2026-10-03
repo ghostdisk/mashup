@@ -747,7 +747,7 @@ fn update_hud(
     let weapon = &equipped.state;
     for mut text in &mut hud {
         text.0 = format!(
-            "{}\n{}{}   {} / {}   {}\nSpeed {:.1} u/s  ·  {}  ·  {}  ·  100 Hz\nWASD / mouse  ·  Space / wheel jump  ·  Ctrl crouch  ·  Shift walk\nLMB fire  ·  RMB silencer  ·  R reload  ·  1 / 2 slots  ·  Q last  ·  [ / ] cycle\nF5 respawn  ·  F12 screenshot  ·  Esc release mouse  ·  F10 quit{}",
+            "{}\n{}{}   {} / {}   {}\nSpeed {:.2} m/s  |  {}  |  {}  |  100 Hz\nWASD / mouse  |  Space / wheel jump  |  Ctrl crouch  |  Shift walk\nLMB fire  |  RMB silencer  |  R reload  |  1 / 2 slots  |  Q last  |  [ / ] cycle\nClick to play  |  Esc release mouse  |  F5 respawn  |  F12 screenshot  |  F10 quit{}",
             presentation.title,
             equipped.profile.kind.name(),
             if equipped.profile.silenced { " (silenced)" } else { "" },
@@ -758,7 +758,7 @@ fn update_hud(
             } else {
                 &session.clip
             },
-            body.velocity.with_y(0.0).length() / SOURCE_UNIT,
+            body.velocity.with_y(0.0).length(),
             if body.grounded { "ground" } else { "air" },
             if body.crouched { "duck" } else { "stand" },
             if session.hit_remaining > 0.0 {

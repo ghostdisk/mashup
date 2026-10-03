@@ -14,6 +14,7 @@ pub struct FirstPersonController {
     pub yaw: f32,
     pub pitch: f32,
     pub enabled: bool,
+    capture_click_held: bool,
     jump_pulse: bool,
     reload_pulse: bool,
     selection_pulse: Option<WeaponSelection>,
@@ -25,7 +26,8 @@ impl FirstPersonController {
             sensitivity: 0.0022,
             yaw,
             pitch: 0.0,
-            enabled: true,
+            enabled: false,
+            capture_click_held: false,
             jump_pulse: false,
             reload_pulse: false,
             selection_pulse: None,
@@ -56,9 +58,12 @@ fn sample_input(
         if keys.just_pressed(KeyCode::Escape) || !window.focused {
             controller.enabled = false;
         }
-        if mouse.just_pressed(MouseButton::Left) && window.focused {
+        if !controller.enabled && mouse.just_pressed(MouseButton::Left)
+            && window.focused && !keys.just_pressed(KeyCode::Escape) {
             controller.enabled = true;
+            controller.capture_click_held = true;
         }
+        if !mouse.pressed(MouseButton::Left) { controller.capture_click_held = false; }
         cursor.grab_mode = if controller.enabled {
             CursorGrabMode::Locked
         } else {
@@ -133,7 +138,7 @@ fn write_commands(
             jump_pulse: std::mem::take(&mut controller.jump_pulse),
             crouch: keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]),
             walk: keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
-            fire: mouse.pressed(MouseButton::Left),
+            fire: mouse.pressed(MouseButton::Left) && !controller.capture_click_held,
             reload: std::mem::take(&mut controller.reload_pulse),
             secondary_fire: mouse.pressed(MouseButton::Right),
             weapon_selection: controller.selection_pulse.take(),

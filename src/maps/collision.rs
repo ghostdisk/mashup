@@ -7,7 +7,8 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 const CELL: f32 = 16.0;
-const SKIN: f32 = 0.0001;
+// Two millimeters keep contacts outside the surface despite world-coordinate rounding.
+const SKIN: f32 = 0.002;
 
 #[derive(Clone)]
 enum Primitive {
@@ -29,13 +30,13 @@ impl Primitive {
                 let edges=[v[1]-v[0],v[2]-v[1],v[0]-v[2]];
                 let mut axes=vec![Vec3::X,Vec3::Y,Vec3::Z,edges[0].cross(edges[1])];
                 for edge in edges { for axis in [Vec3::X,Vec3::Y,Vec3::Z] {axes.push(edge.cross(axis));} }
-                sweep(start,end,half,&axes,|axis| {let p=v.map(|v|v.dot(axis));(p[0].min(p[1]).min(p[2]),p[0].max(p[1]).max(p[2]))})
+                sweep(start,end,half,&axes,|axis| {let p=v.map(|v|(v-start).dot(axis));(p[0].min(p[1]).min(p[2]),p[0].max(p[1]).max(p[2]))})
             },
             Self::Box{center,half:box_half,rotation} => {
                 let box_axes=[rotation*Vec3::X,rotation*Vec3::Y,rotation*Vec3::Z];
                 let mut axes=vec![Vec3::X,Vec3::Y,Vec3::Z];axes.extend(box_axes);
                 for a in [Vec3::X,Vec3::Y,Vec3::Z] {for b in box_axes {axes.push(a.cross(b));}}
-                sweep(start,end,half,&axes,|axis| {let c=center.dot(axis);let extent=box_half.dot((rotation.conjugate()*axis).abs());(c-extent,c+extent)})
+                sweep(start,end,half,&axes,|axis| {let c=(center-start).dot(axis);let extent=box_half.dot((rotation.conjugate()*axis).abs());(c-extent,c+extent)})
             },
             Self::Sphere{center,radius} => sphere_sweep(start,end,half,center,radius),
         }
@@ -43,21 +44,26 @@ impl Primitive {
 }
 
 fn sweep(start: Vec3, end: Vec3, half: Vec3, axes: &[Vec3], project: impl Fn(Vec3)->(f32,f32)) -> Trace {
-    let delta=end-start;let mut enter=0.0_f32;let mut leave=1.0_f32;let mut normal=Vec3::ZERO;let mut start_solid=true;
+    // Project geometry relative to the starting body, not the distant world origin.
+    let delta=end-start;let mut enter=f32::NEG_INFINITY;let mut leave=f32::INFINITY;let mut normal=Vec3::ZERO;let mut start_solid=true;
     for axis in axes {
         if axis.length_squared()<1e-12 {continue;}
         let axis=axis.normalize();let (min,max)=project(axis);let extent=half.dot(axis.abs());
-        let min=min-extent;let max=max+extent;let origin=start.dot(axis);let speed=delta.dot(axis);
-        if origin<=min+SKIN || origin>=max-SKIN {start_solid=false;}
-        if speed.abs()<1e-9 {if origin<min-SKIN || origin>max+SKIN {return Trace::clear(end);}continue;}
-        let a=(min-origin)/speed;let b=(max-origin)/speed;let near=a.min(b);let far=a.max(b);
-        if near>enter || (near>=-SKIN && normal==Vec3::ZERO) {enter=near.max(0.0);normal=if speed>0.0 {-axis}else{axis};}
+        let min=min-extent;let max=max+extent;let speed=delta.dot(axis);
+        if min>=-SKIN || max<=SKIN {start_solid=false;}
+        // Touching a separating plane while sliding or moving away cannot enter
+        // this primitive. In particular, a road triangle's lateral edges must
+        // never become walls while the body's feet merely touch its top plane.
+        if (min>=-SKIN && speed<=0.0) || (max<=SKIN && speed>=0.0) {return Trace::clear(end);}
+        if speed.abs()<1e-9 {if min>0.0 || max<0.0 {return Trace::clear(end);}continue;}
+        let a=min/speed;let b=max/speed;let near=a.min(b);let far=a.max(b);
+        if near>enter {enter=near;normal=if speed>0.0 {-axis}else{axis};}
         leave=leave.min(far);
         if enter>leave+1e-7 {return Trace::clear(end);}
     }
-    // A body touching a face may move away or slide without being obstructed.
-    if leave<=0.0 || enter>1.0 || (enter==0.0 && !start_solid && normal.dot(delta)>=0.0) {return Trace::clear(end);}
-    let fraction=if start_solid {0.0}else{enter.clamp(0.0,1.0)};
+    if leave<=0.0 || enter>1.0 {return Trace::clear(end);}
+    let closing_speed=-normal.dot(delta);
+    let fraction=if start_solid {0.0}else if closing_speed>0.0 {(enter-SKIN/closing_speed).clamp(0.0,1.0)}else{return Trace::clear(end);};
     Trace{fraction,end:start.lerp(end,fraction),normal,start_solid}
 }
 
@@ -136,7 +142,7 @@ impl MeshCollisionWorld {
     pub fn primitive_count(&self)->usize {self.loaded.values().map(|c|c.primitives.len()).sum()}
 }
 pub fn hull_half(hull:Hull)->Vec3 {
-    match hull {Hull::Point=>Vec3::ZERO,Hull::Standing=>Vec3::new(16.0,36.0,16.0)*0.0254,Hull::Crouching=>Vec3::new(16.0,18.0,16.0)*0.0254}
+    hull.half_extents()
 }
 impl CollisionWorld for MeshCollisionWorld {
     fn trace(&self,start:Vec3,end:Vec3,hull:Hull)->Trace {

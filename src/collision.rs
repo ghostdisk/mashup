@@ -8,6 +8,17 @@ pub enum Hull {
     Crouching,
 }
 
+impl Hull {
+    /// Runtime body half extents in meters; every collision backend uses these.
+    pub fn half_extents(self) -> Vec3 {
+        match self {
+            Self::Point => Vec3::ZERO,
+            Self::Standing => Vec3::new(0.4064, 0.9144, 0.4064),
+            Self::Crouching => Vec3::new(0.4064, 0.4572, 0.4064),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Trace {
     pub fraction: f32,
@@ -35,11 +46,7 @@ pub trait CollisionWorld {
 pub struct FloorWorld;
 impl CollisionWorld for FloorWorld {
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace {
-        let height = match hull {
-            Hull::Point => 0.0,
-            Hull::Standing => 36.0 * 0.0254,
-            Hull::Crouching => 18.0 * 0.0254,
-        };
+        let height = hull.half_extents().y;
         let mut trace = Trace::clear(end);
         trace.start_solid = start.y < height - 0.0001;
         if end.y < height && start.y >= height {
