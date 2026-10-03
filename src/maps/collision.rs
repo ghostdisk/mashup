@@ -145,6 +145,7 @@ pub fn hull_half(hull:Hull)->Vec3 {
     hull.half_extents()
 }
 impl CollisionWorld for MeshCollisionWorld {
+    fn supports_aabb(&self)->bool { true }
     fn trace(&self,start:Vec3,end:Vec3,hull:Hull)->Trace {
         self.trace_aabb(start,end,hull_half(hull))
     }

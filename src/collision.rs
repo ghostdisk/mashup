@@ -41,6 +41,9 @@ impl Trace {
 pub trait CollisionWorld {
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace;
 
+    /// True only when custom AABB extents are swept by the backend.
+    fn supports_aabb(&self) -> bool { false }
+
     /// Sweep an axis-aligned body in meters. Legacy backends may approximate
     /// this with a standard hull; backends with general shape support override it.
     fn trace_aabb(&self, start: Vec3, end: Vec3, half_extents: Vec3) -> Trace {
@@ -52,6 +55,7 @@ pub trait CollisionWorld {
 /// Useful for controller tests and an asset-free mechanics playground.
 pub struct FloorWorld;
 impl CollisionWorld for FloorWorld {
+    fn supports_aabb(&self) -> bool { true }
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace {
         self.trace_aabb(start,end,hull.half_extents())
     }

@@ -28,16 +28,26 @@ pub struct Occupancy { pub driver: Option<Entity> }
 #[derive(Component)]
 pub struct DrivingController { pub character: Entity, pub vehicle: Entity, pub enabled: bool }
 
+/// Optional desktop adapter. Compositions may omit it and write DriverIntent
+/// from VR, traffic or another controller instead.
+#[derive(Component)]
+pub struct KeyboardDrivingAdapter;
+
+pub struct KeyboardDrivingPlugin;
+impl Plugin for KeyboardDrivingPlugin {
+    fn build(&self,app:&mut App) { app.add_systems(FixedUpdate,read_driver_input.in_set(CharacterSystems::Intent)); }
+}
+
 /// Adds a controller-neutral vehicle simulator using the composition's collision world.
 pub struct VehicleSimulationPlugin<W: Resource + CollisionWorld>(std::marker::PhantomData<W>);
 impl<W: Resource + CollisionWorld> Default for VehicleSimulationPlugin<W> { fn default()->Self { Self(std::marker::PhantomData) } }
 impl<W: Resource + CollisionWorld> Plugin for VehicleSimulationPlugin<W> {
     fn build(&self, app:&mut App) {
-        app.add_systems(FixedUpdate, (read_driver_input, simulate::<W>).chain().in_set(CharacterSystems::Movement));
+        app.add_systems(FixedUpdate, simulate::<W>.in_set(CharacterSystems::Movement));
     }
 }
 
-fn read_driver_input(keys:Res<ButtonInput<KeyCode>>, mut q:Query<(&DrivingController,&mut DriverIntent)>) {
+fn read_driver_input(keys:Res<ButtonInput<KeyCode>>, mut q:Query<(&DrivingController,&mut DriverIntent),With<KeyboardDrivingAdapter>>) {
     for (controller,mut intent) in &mut q {
         if !controller.enabled { *intent=default(); continue; }
         intent.throttle=(keys.pressed(KeyCode::KeyW)||keys.pressed(KeyCode::ArrowUp)) as u8 as f32-(keys.pressed(KeyCode::KeyS)||keys.pressed(KeyCode::ArrowDown)) as u8 as f32;
@@ -53,11 +63,14 @@ fn simulate<W:Resource+CollisionWorld>(time:Res<Time<Fixed>>,world:Res<W>,mut q:
         state.speed_mps=(state.speed_mps+throttle*vehicle.acceleration_mps2*dt).clamp(-vehicle.max_speed_mps,vehicle.max_speed_mps);
         state.speed_mps=approach_zero(state.speed_mps,vehicle.braking_mps2*brake*dt);
         state.yaw += intent.steer.clamp(-1.0,1.0)*vehicle.steering_rate*(state.speed_mps/vehicle.max_speed_mps).abs().max(0.12)*dt;
-        let delta=Quat::from_rotation_y(state.yaw)*Vec3::NEG_Z*state.speed_mps*dt;
-        let trace=world.trace_aabb(transform.translation,transform.translation+delta,vehicle.half_extents);
+        if !world.supports_aabb() { state.speed_mps=0.0; continue; }
+        let rotation=Quat::from_rotation_y(state.yaw);
+        let half=rotation.mul_vec3(vehicle.half_extents).abs();
+        let delta=rotation*Vec3::NEG_Z*state.speed_mps*dt;
+        let trace=world.trace_aabb(transform.translation,transform.translation+delta,half);
         transform.translation=trace.end;
         if trace.fraction<1.0 { state.speed_mps*=0.15; }
-        transform.rotation=Quat::from_rotation_y(state.yaw);
+        transform.rotation=rotation;
     }
 }
 fn approach_zero(v:f32,amount:f32)->f32 { if v>0.0 {(v-amount).max(0.0)} else {(v+amount).min(0.0)} }

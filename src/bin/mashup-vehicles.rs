@@ -1,15 +1,15 @@
 use bevy::prelude::*;
-use mashup::{MashupPlugin, character::{Character,PlayerCommand}, collision::{CollisionWorld,FloorWorld,Hull}, vehicle::{Vehicle,VehicleState,DriverIntent,DrivingController,Occupancy,VehicleSimulationPlugin}};
+use mashup::{MashupPlugin, character::{Character,PlayerCommand}, collision::{CollisionWorld,FloorWorld,Hull}, vehicle::{Vehicle,VehicleState,DriverIntent,DrivingController,KeyboardDrivingAdapter,KeyboardDrivingPlugin,Occupancy,VehicleSimulationPlugin}};
 
 struct DemoWorld;
 impl Resource for DemoWorld {}
-impl CollisionWorld for DemoWorld { fn trace(&self,start:Vec3,end:Vec3,hull:mashup::collision::Hull)->mashup::collision::Trace { FloorWorld.trace(start,end,hull) } fn trace_aabb(&self,start:Vec3,end:Vec3,half:Vec3)->mashup::collision::Trace{FloorWorld.trace_aabb(start,end,half)} }
+impl CollisionWorld for DemoWorld { fn supports_aabb(&self)->bool{true} fn trace(&self,start:Vec3,end:Vec3,hull:mashup::collision::Hull)->mashup::collision::Trace { FloorWorld.trace(start,end,hull) } fn trace_aabb(&self,start:Vec3,end:Vec3,half:Vec3)->mashup::collision::Trace{FloorWorld.trace_aabb(start,end,half)} }
 struct Demo;
 impl Plugin for Demo { fn build(&self,app:&mut App){app.insert_resource(DemoWorld).add_plugins(VehicleSimulationPlugin::<DemoWorld>::default()).add_systems(Startup,setup).add_systems(Update,(toggle,follow));} }
 #[derive(Resource)] struct DemoIds { driver:Entity, car:Entity, driving:bool }
 fn setup(mut commands:Commands,mut meshes:ResMut<Assets<Mesh>>,mut mats:ResMut<Assets<StandardMaterial>>){
     let driver=commands.spawn((Name::new("Player character (retained while driving)"),Character,PlayerCommand::default(),Transform::from_xyz(0.0,0.95,2.5))).id();
-    let car=commands.spawn((Name::new("Box car"),Vehicle::default(),VehicleState::default(),DriverIntent::default(),Occupancy::default(),Transform::from_xyz(0.0,0.68,0.0),Mesh3d(meshes.add(Cuboid::new(2.0,1.1,4.4))),MeshMaterial3d(mats.add(Color::srgb(0.8,0.15,0.08))))).id();
+    let car=commands.spawn((Name::new("Box car"),Vehicle::default(),VehicleState::default(),DriverIntent::default(),Occupancy::default(),KeyboardDrivingAdapter,Transform::from_xyz(0.0,0.68,0.0),Mesh3d(meshes.add(Cuboid::new(2.0,1.1,4.4))),MeshMaterial3d(mats.add(Color::srgb(0.8,0.15,0.08))))).id();
     commands.entity(car).insert(DrivingController{character:driver,vehicle:car,enabled:false});
     commands.insert_resource(DemoIds{driver,car,driving:false});
     commands.spawn((Camera3d::default(),Transform::from_xyz(0.0,6.0,10.0).looking_at(Vec3::ZERO,Vec3::Y)));
@@ -36,4 +36,4 @@ fn toggle(keys:Res<ButtonInput<KeyCode>>,mut ids:ResMut<DemoIds>,world:Res<DemoW
     }
 }
 fn follow(ids:Res<DemoIds>,mut camera:Query<&mut Transform,With<Camera3d>>,car:Query<(&Transform,&VehicleState)>,player:Query<&Transform,Without<Camera3d>>){let focus=if ids.driving{car.get(ids.car).ok().map(|(t,_)|t.translation)}else{player.get(ids.driver).ok().map(|t|t.translation)};if let Some(focus)=focus{let yaw=car.get(ids.car).ok().map(|(_,s)|s.yaw).unwrap_or(0.0);let rotation=Quat::from_rotation_y(yaw);for mut c in &mut camera{c.translation=focus+rotation*Vec3::new(0.0,5.0,9.0);c.look_at(focus,Vec3::Y);}}}
-fn main(){App::new().add_plugins(DefaultPlugins.set(WindowPlugin{primary_window:Some(Window{title:"Mashup — Vehicles".into(),focused:false,..default()}),..default()})).add_plugins(MashupPlugin).add_plugins(Demo).run();}
+fn main(){App::new().add_plugins(DefaultPlugins.set(WindowPlugin{primary_window:Some(Window{title:"Mashup — Vehicles".into(),focused:false,..default()}),..default()})).add_plugins(MashupPlugin).add_plugins(KeyboardDrivingPlugin).add_plugins(Demo).run();}
