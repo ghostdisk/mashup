@@ -15,7 +15,8 @@ six of eight physical cores / twelve of sixteen logical CPUs. Every compiler,
 linker and build script shares the same CPU budget. Rust can create additional
 threads, but they execute only on the allowed CPUs. Dev builds only.
 
-One named Windows mutex still serializes Cargo build invocations. Parallel work
+`Local\MashupSharedDependencyBuild` serializes Cargo invocations using the new
+shared cache; it is separate from the obsolete private-cache queue. Parallel work
 occurs within that invocation, avoiding competing cold builds and excessive
 duplicate compiler graphs. Application development remains parallel across chats.
 

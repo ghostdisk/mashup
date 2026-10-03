@@ -49,7 +49,7 @@ try {
     $bootstrapGate.Dispose()
 }
 if ($prepareOnly) { exit 0 }
-$buildGate = [Threading.Mutex]::new($false, 'Local\MashupRustBuild')
+$buildGate = [Threading.Mutex]::new($false, 'Local\MashupSharedDependencyBuild')
 $ownsBuildGate = $false
 try {
     Write-Output 'Dependencies are prepared. Waiting for shared Cargo slot; the active invocation uses up to 12 compiler jobs.'

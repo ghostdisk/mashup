@@ -108,4 +108,4 @@ thread listings and update this register as needed.
 | VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | `01a102e1-c84f-7ea3-8245-775854233bce` |
 | GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | `01a102e1-d6c4-7cc2-9497-a3031b3be758` |
 | World Presentation | `client-new-thread:249cca3e-0f04-49bd-856b-930e38f4fb65` | `01a1030f-a010-75f3-b8a2-d6a6b67f5fc8` |
-| Mashup Demo | `client-new-thread:f11c7d15-41eb-49a0-8b9b-06f48d63332c` | Pending app setup |
+| Mashup Demo | `client-new-thread:f11c7d15-41eb-49a0-8b9b-06f48d63332c` | `01a10317-a0b9-7210-bb59-690ddadea0e3` |
