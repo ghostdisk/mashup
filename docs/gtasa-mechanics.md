@@ -107,6 +107,30 @@ meanings to source fields. These operations are reusable by the future GTA
 controller; the world inspector still flies and does not select them as physical
 movement. Animation/sprint logic remains necessary after the normal blend step.
 
+## IPL and LOD identity evidence
+
+MCP decompilation of `005d2d60` shows the text IPL loader retains the `inst`
+entity array, binds streamed files through `00404f00`, then postprocesses links
+through `005cf290`. `00404f00` extracts the text file basename, appends `_stream`
+and matches that prefix to the streamed IPL registry; it stores the parent
+entity-array index in the streamed descriptor at offset `0x2a`.
+
+`00406140` and `00405cc0` load the binary `bnry` branch. A nonnegative source
+LOD index in entity offset `0x30` addresses that parent text entity array through
+`0095ab18`; `-1` becomes a null link. The target's byte at offset `0x34` counts
+linked children. Text postprocessing in `005cf290` similarly resolves text
+LOD indices against the text array, and can subsequently clear links or adjust
+draw distance based on child count and model flags. Those postprocessing rules
+are not yet translated into the renderer.
+
+The importer now preserves a resolved placement identity in
+`source.lod_instance`, alongside the original `lod_index`, and reports selected
+references, resolved references and targets excluded by area/region/model
+selection. Resolution runs before selection to preserve source array indexing.
+This is provenance of the raw source relationship; it is not a claim that the
+source runtime necessarily retains that link after postprocessing. The current
+renderer still suppresses LOD models using its initial name heuristic.
+
 ## Evidence limits and implementation follow-through
 
 Decompiler output loses some x87 intrinsic arguments and sometimes infers

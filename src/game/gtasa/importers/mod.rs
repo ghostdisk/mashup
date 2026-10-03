@@ -48,6 +48,7 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
         if path.file_name().is_some_and(|n|n.to_str().is_some_and(|s|s.eq_ignore_ascii_case("peds.col"))) {warnings.push("models/coll/peds.col: legacy character collisions excluded from the world importer (malformed records observed)".into());continue;}
         collisions.extend(collision::models(&fs::read(&path).map_err(|e|e.to_string())?).map_err(|e|format!("{}: {e}",path.display()))?);
     }}}
+    let lod_links=placement::lod_links(&instances)?;
     let source_count=instances.len();let mut interior_count=0;let mut outside_count=0;let mut global_area_count=0;
     instances.retain(|i| {
         // Area 13 contains world objects visible across interiors, including exterior ground.
@@ -99,7 +100,8 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
         model_catalog.insert(id.to_string(),json!({"id":format!("gtasa:model:{id}"),"name":definition.name,"mesh":mesh_path,"bounds":model_bounds.json(),"materials":materials,"collision":collision_path,"source":{"model_id":definition.id,"txd":definition.txd,"draw_distance":definition.draw_distance,"flags":definition.flags,"animation_dictionary":definition.animation},"lod":lod}));
         if progress.is_multiple_of(200) {println!("Models {}/{} ({})",progress+1,model_ids.len(),definition.name);}
     }
-    let chunk_size=256.0;let mut chunks:BTreeMap<(i32,i32),(Bounds,Vec<Value>)>=BTreeMap::new();let mut bounds=Bounds::empty();let mut imported_count=0;let mut collision_instances=0;let mut nonlod_count=0;
+    let imported_ids:BTreeSet<_>=instances.iter().filter(|i|model_catalog.contains_key(&i.model.to_string())).map(placement::Instance::identity).collect();
+    let chunk_size=256.0;let mut chunks:BTreeMap<(i32,i32),(Bounds,Vec<Value>)>=BTreeMap::new();let mut bounds=Bounds::empty();let mut imported_count=0;let mut collision_instances=0;let mut nonlod_count=0;let mut lod_reference_count=0;let mut resolved_lod_count=0;let mut excluded_lod_count=0;
     for instance in instances {
         let Some(model)=model_catalog.get(&instance.model.to_string()) else {continue;};
         let translation=renderware::basis(instance.position);let rotation=renderware::source_rotation(instance.rotation);
@@ -107,12 +109,14 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
         let key=((translation.x/chunk_size).floor() as i32,(translation.z/chunk_size).floor() as i32);
         let (chunk_bounds,records)=chunks.entry(key).or_insert_with(||(Bounds::empty(),Vec::new()));chunk_bounds.include(world_bounds.min);chunk_bounds.include(world_bounds.max);bounds.include(world_bounds.min);bounds.include(world_bounds.max);
         if !model["collision"].is_null() {collision_instances+=1;}if model["lod"]!=true {nonlod_count+=1;}
-        records.push(json!({"id":format!("gtasa:{}:{}",instance.source,instance.index),"model":instance.model.to_string(),"translation":translation.to_array(),"rotation":rotation.to_array(),"source":{"ipl":instance.source,"index":instance.index,"interior_flags":instance.interior,"lod_index":instance.lod}}));imported_count+=1;
+        let identity=instance.identity();let lod_target=lod_links.get(&identity);
+        if instance.lod>=0 {lod_reference_count+=1;if let Some(target)=lod_target {resolved_lod_count+=1;if !imported_ids.contains(target){excluded_lod_count+=1;}}else{warnings.push(format!("{identity}: unresolved source LOD index {}",instance.lod));}}
+        records.push(json!({"id":identity,"model":instance.model.to_string(),"translation":translation.to_array(),"rotation":rotation.to_array(),"source":{"ipl":instance.source,"index":instance.index,"interior_flags":instance.interior,"lod_index":instance.lod,"lod_instance":lod_target}}));imported_count+=1;
     }
     if imported_count==0 {return Err("no map instances were imported".into());}
     let mut chunk_catalog=Vec::new();
     for ((x,z),(bounds,instances)) in chunks {let id=format!("{x}_{z}");let path=format!("chunks/{id}.json");maps::write_json(&root.join(&path),&json!({"version":1,"id":id,"instances":instances}))?;chunk_catalog.push(json!({"id":id,"grid":[x,z],"bounds":bounds.json(),"payload":path}));}
-    let report=json!({"source_instances":source_count,"imported_instances":imported_count,"detailed_instances":nonlod_count,"collision_instances":collision_instances,"global_area_instances_selected":global_area_count,"interior_instances_excluded":interior_count,"outside_region_excluded":outside_count,"models":model_catalog.len(),"chunks":chunk_catalog.len(),"warnings":warnings,"coverage":if options.radius.is_none(){"main exterior and global-area placements; fidelity gaps listed"}else{"partial region"},"remaining":["LOD linkage/distance policy","water and procedural vegetation","time-of-day materials and effects","interior selection"]});
+    let report=json!({"source_instances":source_count,"imported_instances":imported_count,"detailed_instances":nonlod_count,"collision_instances":collision_instances,"global_area_instances_selected":global_area_count,"interior_instances_excluded":interior_count,"outside_region_excluded":outside_count,"lod_references":lod_reference_count,"resolved_lod_references":resolved_lod_count,"excluded_lod_targets":excluded_lod_count,"models":model_catalog.len(),"chunks":chunk_catalog.len(),"warnings":warnings,"coverage":if options.radius.is_none(){"main exterior and global-area placements; fidelity gaps listed"}else{"partial region"},"remaining":["source LOD postprocessing/distance policy","water and procedural vegetation","time-of-day materials and effects","interior selection"]});
     maps::write_json(&root.join("import-report.json"),&report)?;
     let manifest=json!({"format":"mashup-world","version":1,"id":"gtasa:main","required_capabilities":["static-mesh-v1","instances-v1","spatial-chunks-v1","collision-primitives-v1"],"coordinates":{"units":"meters","source_units_scale":1.0,"source_basis":"(x,y,z) -> (x,z,-y)","source_rotation":"IPL conjugate, basis-conjugated","runtime_units":"1 unit = 1 meter"},"bounds":bounds.json(),"chunk_size":chunk_size,"models":model_catalog,"chunks":chunk_catalog,"spawns":[{"id":"grove-street","position":renderware::basis(options.center+Vec3::Z*3.0).to_array(),"yaw":1.5707964}],"provenance":{"game":"gtasa","installation":install.to_string_lossy(),"importer":"mashup-gtasa-v1","source":"data/gta.dat plus IMG and loose COL","region_radius":options.radius},"report":"import-report.json"});
     let path=root.join("world.mashup.json");maps::write_json(&path,&manifest)?;

@@ -6,6 +6,30 @@ use std::collections::BTreeMap;
 #[derive(Clone)]
 pub struct Definition { pub id: i32, pub name: String, pub txd: String, pub draw_distance: f32, pub flags: u32, pub animation: Option<String> }
 pub struct Instance { pub model: i32, pub position: Vec3, pub rotation: Quat, pub interior: i32, pub lod: i32, pub source: String, pub index: usize }
+impl Instance {pub fn identity(&self)->String {format!("gtasa:{}:{}",self.source,self.index)}}
+
+/// Source indices in streamed IPLs address the parent text IPL's inst array.
+/// This records the raw relationship; source postprocessing may later clear it.
+pub fn lod_links(instances:&[Instance])->Result<BTreeMap<String,String>> {
+    let mut text_sources:BTreeMap<String,String>=BTreeMap::new();let mut records=BTreeMap::new();
+    for instance in instances {
+        let source=instance.source.replace('\\',"/");
+        if source.contains('/') {
+            let stem=source.rsplit('/').next().unwrap().strip_suffix(".ipl").ok_or("text IPL source missing extension")?;
+            if let Some(previous)=text_sources.insert(stem.into(),instance.source.clone()) {if previous!=instance.source{return Err(format!("ambiguous parent IPL basename {stem}"));}}
+        }
+        records.insert((instance.source.clone(),instance.index),instance.identity());
+    }
+    let mut links=BTreeMap::new();
+    for instance in instances.iter().filter(|i|i.lod>=0) {
+        let normalized=instance.source.replace('\\',"/");
+        let parent=if normalized.contains('/') {Some(&instance.source)}else{
+            normalized.strip_suffix(".ipl").and_then(|stem|stem.rsplit_once("_stream")).filter(|(_,number)|!number.is_empty()&&number.chars().all(|c|c.is_ascii_digit())).and_then(|(stem,_)|text_sources.get(stem))
+        };
+        if let Some(target)=parent.and_then(|source|records.get(&(source.clone(),instance.lod as usize))) {links.insert(instance.identity(),target.clone());}
+    }
+    Ok(links)
+}
 pub fn lines(text: &str) -> impl Iterator<Item=String> + '_ {
     text.lines().map(|line| line.split('#').next().unwrap_or("").trim().to_lowercase()).filter(|line| !line.is_empty())
 }

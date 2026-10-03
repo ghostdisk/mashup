@@ -55,6 +55,9 @@ automatically exit. `--stream-radius METERS` defaults to 600.
 `--position X,Y,Z` selects an inspection focus in Bevy meters; the camera starts
 35 meters above it. `--capture-label NAME` stores that view's outputs in
 `user_data/gtasa/NAME` for comparisons between cities.
+`--background` creates a hidden inspector window for runtime captures while
+the user continues working. It still renders and streams the ordinary world;
+the capture uses the rendered framebuffer and does not capture the desktop.
 
 ## Observed source layout
 
@@ -151,6 +154,12 @@ this executable's area checks at `004071a0` and `004071c0` confirms that entitie
 in area 13 are accepted alongside the selected area; see [gtasa-mechanics.md](gtasa-mechanics.md).
 The installed IPL records and [MTA building documentation](https://wiki.multitheftauto.com/wiki/CreateBuilding)
 also support this selection.
+Source LOD indices are now resolved to placement identities before area/region
+filtering. Streamed IPL indices address the parent text IPL, as confirmed through
+Ghidra MCP at `00404f00`, `00406140` and `005cf290`. Instance provenance retains
+`lod_index` and `lod_instance`; import reports distinguish unresolved references
+from targets excluded by selection. Source postprocessing can later clear these
+relationships, so this provenance does not prescribe runtime visibility.
 LOD placements are retained in the package, but the initial runtime renders
 detailed models and suppresses models recognized by their LOD names. Exact
 source LOD linking and distance policy remain to be implemented.
