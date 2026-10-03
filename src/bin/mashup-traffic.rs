@@ -1,6 +1,14 @@
 //! Small authored-lane harness for traffic policy integration.
 use bevy::prelude::*;
-use mashup::{MashupPlugin, collision::FloorWorld, traffic::{Lane, LaneId, RoadNetwork, Route, TrafficAgent, TrafficBudget, TrafficObserver, TrafficPlugin, TrafficPopulation}, vehicle::VehicleSimulationPlugin};
+use mashup::{MashupPlugin, collision::{CollisionWorld, FloorWorld, Hull, Trace}, traffic::{Lane, LaneId, RoadNetwork, Route, TrafficAgent, TrafficBudget, TrafficObserver, TrafficPlugin, TrafficPopulation}, vehicle::VehicleSimulationPlugin};
+
+#[derive(Resource)]
+struct TrafficWorld;
+
+impl CollisionWorld for TrafficWorld {
+    fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace { FloorWorld.trace(start, end, hull) }
+    fn trace_aabb(&self, start: Vec3, end: Vec3, half_extents: Vec3) -> Trace { FloorWorld.trace_aabb(start, end, half_extents) }
+}
 
 fn main() {
     let a = LaneId(1);
@@ -18,8 +26,8 @@ fn main() {
             primary_window: Some(Window { title: "Mashup — traffic policy harness".into(), resolution: (1100, 760).into(), focused: false, ..default() }),
             ..default()
         }))
-        .add_plugins((MashupPlugin, TrafficPlugin, VehicleSimulationPlugin::<FloorWorld>::default()))
-        .insert_resource(FloorWorld)
+        .add_plugins((MashupPlugin, TrafficPlugin, VehicleSimulationPlugin::<TrafficWorld>::default()))
+        .insert_resource(TrafficWorld)
         .insert_resource(RoadNetwork { lanes })
         .insert_resource(TrafficPopulation { desired: 8, routes: vec![Route { lanes: vec![a, b, c, d], closed_loop: true }], ..default() })
         .insert_resource(TrafficBudget { max_agents: 12, spawn_per_tick: 1, despawn_distance_m: 180.0 })
@@ -43,7 +51,8 @@ fn add_vehicle_boxes(
     }
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>) {
     commands.spawn((Camera3d::default(), Transform::from_xyz(95.0, 100.0, 110.0).looking_at(Vec3::ZERO, Vec3::Y)));
     commands.spawn((DirectionalLight::default(), Transform::from_xyz(20.0, 45.0, 20.0).looking_at(Vec3::ZERO, Vec3::Y)));
+    commands.spawn((Mesh3d(meshes.add(Plane3d::default().mesh().size(120.0, 120.0))), MeshMaterial3d(materials.add(Color::srgb(0.19, 0.23, 0.2))), Transform::from_xyz(0.0, -0.05, 0.0)));
 }

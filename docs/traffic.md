@@ -20,8 +20,9 @@ so imported junction choices remain deterministic.
 
 The current following policy targets a point four meters ahead, caps speed by
 the lane limit and agent profile, and reduces target speed for another agent on
-the same route within a conservative headway. It also slows for nearby authored
-`TrafficObstacle` entities that intersect the forward path. Speed comes from
+the same route within a conservative headway. It also slows for nearby shared
+vehicle bodies and authored `TrafficObstacle` entities that intersect the
+forward path. Speed comes from
 shared `vehicle::VehicleState`; traffic throttle, steering and braking are
 transferred to `vehicle::DriverIntent`. The target speed and lookahead point
 remain available in `TrafficDriverIntent` for future route policies.
@@ -35,6 +36,6 @@ world. It does not load GTA assets or import the game path network.
 
 Vehicles owns the vehicle state and physical integration; traffic owns routes,
 population, lookahead and intent. Current headway is route-progress based and
-only accounts for vehicles sharing an identical route; obstacle sensing uses a
+only accounts for traffic sharing an identical route; obstacle sensing uses a
 simple forward proximity check. Cross-route intersection conflict, lane
 changes, and GTA path extraction are not implemented.
