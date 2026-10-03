@@ -42,6 +42,8 @@ records its identity. Subsequent input targets only that recorded CS window:
 The script verifies executable path, process name and start time before control.
 It refuses another executable or a binary outside its own worktree, and never
 reads desktop pixels. `-Binary` can select a private dev-output path in this tree.
+Input does not foreground the game unless the caller explicitly supplies `-Focus`.
+Click into the game to capture its mouse; Escape releases it.
 
 `--map <GLB>` and `--weapon <GLB>` select separately imported content.
 `--movement hl` switches to the Half-Life profile without changing either asset.

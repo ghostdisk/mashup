@@ -60,6 +60,9 @@ AK damage is 36 with .98, and Desert Eagle damage is 54 with .81. These factors
 apply per 500 source units of travel. Hitscan range is 8192 units for the rifles
 and 4096 for the pistol; world tracing uses `CollisionWorld::trace` with a point
 hull. Practice targets use original box hit shapes without hitgroups or armor.
+The spread ray retains `forward + right*x + up*y` without normalization. Range
+falloff uses projected travel (`trace.fraction * range`), and positive damage is
+truncated after falloff before any hitgroup/armor calculation.
 
 Presentation remains concrete in `glue/first_person.rs`: it preloads GLBs,
 replaces the equipped model root, builds its named-animation graph and consumes
@@ -112,6 +115,9 @@ of pitch kick, .225-second cycle and 2.2-second reload. Windows primary attack
 selects stance spread from the preceding accuracy value, including airborne
 shots, before fire updates accuracy. The profile follows that explicit Windows
 call ordering; the Linux airborne inline decompilation needs further validation.
+Windows bullet tracing at `10069a30` confirms the unnormalized spread ray,
+projected falloff distance and integer damage truncation. Player spread sums four
+seeded uniform samples into two components; its exact RNG sequence remains work.
 
 Exact Windows/runtime equivalence remains to be measured. Bullet sampling,
 animation-variant selection and recoil RNG are approximate. Penetration, armor,

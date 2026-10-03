@@ -4,7 +4,8 @@ param(
     [int]$Key = 87,
     [ValidateSet('left','right')][string]$Button = 'left',
     [ValidateRange(40,5000)][int]$DurationMs = 150,
-    [switch]$CaptureWhileHeld
+    [switch]$CaptureWhileHeld,
+    [switch]$Focus
 )
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
@@ -72,8 +73,10 @@ if ($Action -eq 'stop') {
 }
 $window = $process.MainWindowHandle
 if ($window -eq 0) { throw 'CS window is not ready.' }
-[CstrikeDevWindow]::SetForegroundWindow($window) | Out-Null
-Start-Sleep -Milliseconds 100
+if ($Focus) {
+    [CstrikeDevWindow]::SetForegroundWindow($window) | Out-Null
+    Start-Sleep -Milliseconds 100
+}
 function Request-HeldCapture {
     if ($CaptureWhileHeld) {
         [CstrikeDevWindow]::Key($window,123,$true)

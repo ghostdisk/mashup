@@ -224,6 +224,11 @@ impl CsGun {
             WeaponKind::Deagle => 0.81,
         }
     }
+    /// Positive source damage is truncated after range falloff, before hitgroups.
+    /// Distance is the trace's projected travel parameter, in runtime meters.
+    pub fn damage_at(&self, distance: f32) -> f32 {
+        (self.damage() * self.range_modifier().powf(distance / (500.0 * SOURCE_UNIT))).trunc()
+    }
     pub fn clip(&self, action: &str) -> String {
         if self.kind == WeaponKind::M4a1 && !self.silenced {
             format!("{action}_unsil")

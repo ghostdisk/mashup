@@ -634,14 +634,16 @@ fn shoot<W: Resource + CollisionWorld>(
                     let deviation =
                         Vec2::new((seed * 12.9898).sin(), (seed * 78.233).sin()) * spread;
                     let direction =
-                        (rotation * Vec3::new(deviation.x, deviation.y, -1.0)).normalize();
+                        rotation * Vec3::new(deviation.x, deviation.y, -1.0);
                     let start = body.position + Vec3::Y * body.eye_height();
                     let trace = world.trace(
                         start,
                         start + direction * gun.range(),
                         Hull::Point,
                     );
-                    let mut nearest = (trace.end - start).length();
+                    // CS leaves forward + spread unnormalized. Both trace
+                    // fraction and target slabs use the projected ray parameter.
+                    let mut nearest = trace.fraction * gun.range();
                     let mut hit = None;
                     for (entity, target) in &mut targets {
                         if let Some(distance) =
@@ -655,7 +657,7 @@ fn shoot<W: Resource + CollisionWorld>(
                     if let Some(entity) = hit
                         && let Ok((_, mut target)) = targets.get_mut(entity)
                     {
-                        target.health -= gun.damage() * gun.range_modifier().powf(nearest / (500.0 * SOURCE_UNIT));
+                        target.health -= gun.damage_at(nearest);
                         session.hit_remaining = 0.15;
                         if target.health <= 0.0 {
                             commands.entity(entity).despawn();
