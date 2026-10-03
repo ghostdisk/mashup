@@ -11,6 +11,14 @@ work on a shared core.
 - Don't write tests or run tests
 - Don't spawn subagents unless you're a coordiantor agent.
 - Always work in dev build
+- Windows builds use `.cargo/config.toml` and `tools/capped-rustc.cmd`: one Cargo
+  job, six logical CPUs maximum (affinity `0x3f`), BelowNormal compiler/linker
+  priority. Do not override the cap or restart an uncapped build. Keep the
+  wrapper active in private worktree targets too. Agents build with
+  `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` from their
+  worktree. Its shared mutex permits one build across agents, preventing several
+  memory-heavy compilers/linkers from running together. The gate is automatic;
+  routine builds do not need coordinator approval.
 
 ## Agent coordination
 
