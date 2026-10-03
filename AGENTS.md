@@ -54,6 +54,7 @@ Current binary ownership:
 - `mashup-vr-controls`: VR control integration worker.
 - `mashup-gtasa-assets`: GTA vehicle/pedestrian asset extraction worker.
 - `mashup-world-preview`: shared world-presentation worker, if a runtime harness is needed.
+- `mashup-demo`: combined mashup experience and UI selection worker.
 - Future ports: reserve a distinct `mashup-<game>` binary with the coordinator.
 
 Worktrees isolate source files, but they may share Cargo's target directory.
@@ -107,7 +108,7 @@ The user prefers roughly one coordination message per five minutes on average.
 Batch meaningful updates, avoid repetitive progress chatter and peer messages,
 and let active agents work without repeated check-ins.
 
-The current scale experiment has eleven assigned workers plus Coordinator. New worker chats
+The current scale experiment has twelve assigned workers plus Coordinator. New worker chats
 default to `gpt-6-luna` (Luna 6.0), each in a worktree. Coordinator is authorized
 to create additional worker chats on demand for distinct new tasks and to delegate
 their work. Consult [docs/workstreams.md](docs/workstreams.md) for ownership before

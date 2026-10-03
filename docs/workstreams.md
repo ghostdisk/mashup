@@ -2,7 +2,8 @@
 
 The user authorized ten initial independent workers, plus Coordinator, on
 2026-10-03, and additional distinct workers as needed. World Presentation is the
-first additional worker, bringing the assigned worker count to eleven.
+first additional worker; Mashup Demo follows, bringing the assigned worker count
+to twelve.
 GTA San Andreas is the primary world for initial integrations. Default model for
 new workers is Luna 6.0 (`gpt-6-luna`). Every worker uses its own Git worktree,
 private Cargo target, dedicated binary and generated-output directory.
@@ -20,6 +21,7 @@ private Cargo target, dedicated binary and generated-output directory.
 | VR Controls | Real VR adapter to existing character and weapon intent, with desktop development fallback | VR controller/glue, `docs/vr-controls.md` | `mashup-vr-controls` |
 | GTA Assets | First car and pedestrian imports, then broader usable GTA model/animation coverage | New GTA vehicle/pedestrian/model-export modules and CLI, `docs/gtasa-assets.md` | `mashup-gtasa-assets` |
 | World Presentation | Opt-in LOD mesh materialization and stable placed-instance metadata for source-owned render policies | `src/maps/runtime.rs`, new runtime metadata/presentation seams, `docs/world-runtime.md` | `mashup-world-preview`, if a separate harness is needed |
+| Mashup Demo | One runnable composition combining available worlds/mechanics with UI map, weapon and mode selection | New demo composition/glue, `docs/mashup-demo.md`; adapters coordinated with core owners | `mashup-demo` |
 
 Coordinator owns central product decisions, `docs/maps.md`, `docs/shared-specs.md`,
 this register and integration into `mashup-gtasa-cstrike`. The former vehicle task
@@ -33,6 +35,13 @@ expose placed-instance/model identity plus source metadata. GTASA owns its LOD
 link postprocessing, source distance/flag rules and visibility policy. Collision
 residency remains independent of render visibility. Coordinate runtime edits
 with Coordinator; `src/maps/collision.rs` remains outside this worker's scope.
+
+Mashup Demo owns the combined runnable experience, consuming the existing HTML
+UI and shared map, weapon, vehicle, NPC, traffic and control systems. It does not
+take over clean ports or duplicate their engines. Existing source content must
+be checked for actual availability; unavailable maps/features are not presented
+as working. Coordinate upstream API fixes with their owners and maintain explicit
+control/scene handoffs when changing modes or maps.
 
 ## Shared boundaries
 
@@ -97,3 +106,4 @@ thread listings and update this register as needed.
 | VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | `01a102e1-c84f-7ea3-8245-775854233bce` |
 | GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | `01a102e1-d6c4-7cc2-9497-a3031b3be758` |
 | World Presentation | `client-new-thread:249cca3e-0f04-49bd-856b-930e38f4fb65` | `01a1030f-a010-75f3-b8a2-d6a6b67f5fc8` |
+| Mashup Demo | Creation pending | Pending app setup |
