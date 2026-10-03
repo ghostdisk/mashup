@@ -19,8 +19,8 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 | --- | --- | --- |
 | Maps/worlds | GoldSrc GLB rendering plus BSP collision catalog; `CollisionWorld` boundary | Custom versioned shared map packages, multiple collision backends, large-world loading; see [maps.md](maps.md) |
 | Characters/controllers | `Character`, `PlayerCommand`, controller adapters, ordered intent/movement systems | A body can receive intent from keyboard, replay, AI, network, or VR; choose mechanics independently of the body asset and world |
-| Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`; CS AK-47 behavior/presentation | CS is expanding weapon profiles and switching; reuse common timing, equip/action, collision, and presentation boundaries |
-| Items/pickups | No shared pickup/inventory contract yet | Separate item definitions, world instances, pickup interaction, inventory ownership, and equipment; keep source-game restrictions in profiles |
+| Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`, `WeaponSelection`, `WeaponInventory<T>`; CS AK/M4A1/Desert Eagle profiles | Reuse intent, equip and ammo state; profiles supply ballistics/presentation. See [weapons.md](weapons.md) |
+| Items/pickups | Equipped weapon inventory exists; no general pickup/item contract yet | Separate item definitions, world instances and pickup interaction; keep source-game restrictions in profiles |
 | Vehicles | No shared vehicle implementation yet | Shared occupancy/entry/exit and driver intent as needed; vehicle assets, handling profiles, and physical simulation remain replaceable |
 | World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
 
@@ -32,6 +32,15 @@ Across systems, define ownership of state, identity/reference semantics, units,
 coordinate conventions, intent/events, and capability requirements when relevant.
 Keep reusable contracts small enough that a second game can actually consume them.
 Importers preserve facts; game profiles supply rules; compositions choose the mix.
+
+Weapon equipment currently lives on the body in `WeaponInventory<T>`: each entry
+owns its timing, magazine/reserve and profile. `PlayerCommand.weapon_selection`
+is a one-tick slot/next/previous/last request. Switching preserves ammo, cancels
+the outgoing reload and starts incoming deploy timing; glue applies profile
+deploy effects. Only active action timers advance. Secondary fire is held intent.
+CS punch lives on the player and survives switching. Model/animation loading is
+presentation and cannot refill ammo or control attack readiness. These implemented
+semantics and their limits are described in [weapons.md](weapons.md).
 
 ## Current assignments
 
