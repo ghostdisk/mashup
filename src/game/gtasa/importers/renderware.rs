@@ -42,7 +42,7 @@ fn materials(data: &[u8]) -> Result<Vec<Value>> {
     Ok(output)
 }
 
-fn geometry(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
+fn geometry(data: &[u8]) -> Result<(MeshData, Vec<Value>, usize)> {
     let mut r = Bytes::new(child(data, 1)?);
     let flags = r.u32()?; let nt = r.u32()? as usize; let nv = r.u32()? as usize; let nm = r.u32()?;
     if flags & 0x01000000 != 0 { return Err("native DFF geometry unsupported".into()); }
@@ -51,8 +51,12 @@ fn geometry(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
         (0..nv).map(|_| { let c = r.take(4)?; Ok([c[0] as f32/255.0,c[1] as f32/255.0,c[2] as f32/255.0,c[3] as f32/255.0]) }).collect::<Result<_>>()?
     } else { vec![[1.0; 4]; nv] };
     let uv_sets = if flags >> 16 & 0xff != 0 { flags >> 16 & 0xff } else if flags & 0x80 != 0 { 2 } else { u32::from(flags & 4 != 0) };
-    let mut uv = vec![[0.0; 2]; nv];
-    for set in 0..uv_sets { for target in &mut uv { let value = r.floats::<2>()?; if set == 0 { *target = value; } } }
+    let mut uv = vec![[0.0; 2]; nv];let mut repaired_uv=0;
+    for set in 0..uv_sets { for target in &mut uv {
+        let mut value=[f32::from_bits(r.u32()?),f32::from_bits(r.u32()?)];
+        for coordinate in &mut value {if !coordinate.is_finite(){*coordinate=0.0;repaired_uv+=1;}}
+        if set == 0 { *target = value; }
+    } }
     let mut groups: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
     for _ in 0..nt {
         let b = r.u16()? as u32; let a = r.u16()? as u32; let material = r.u16()? as u32; let c = r.u16()? as u32;
@@ -79,10 +83,10 @@ fn geometry(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
         mesh.indices.extend(indices);
     }
     if mesh.indices.is_empty() { return Err("DFF has no triangles".into()); }
-    Ok((mesh, materials))
+    Ok((mesh, materials,repaired_uv))
 }
 
-pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
+pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>,Vec<String>)> {
     let clump = child(data, 0x10)?;
     let mut r = Bytes::new(child(child(clump, 0xe)?, 1)?);
     let nf = r.u32()? as usize; let mut frames = Vec::new();
@@ -94,12 +98,13 @@ pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
         frames.push(if parent < 0 { local } else { *frames.get(parent as usize).ok_or("invalid frame parent")? * local });
     }
     let geometries = chunks(child(clump, 0x1a)?)?.into_iter().filter(|(id, _)| *id == 0xf).map(|(_, bytes)| geometry(bytes)).collect::<Result<Vec<_>>>()?;
-    let mut mesh = MeshData::default(); let mut material_list = Vec::new();
+    let mut mesh = MeshData::default(); let mut material_list = Vec::new();let mut warnings=Vec::new();
+    for (index,(_,_,count)) in geometries.iter().enumerate(){if *count>0 {warnings.push(format!("geometry {index}: replaced {count} nonfinite UV components with zero; positions/collision preserved"));}}
     for (_, atomic) in chunks(clump)?.into_iter().filter(|(id, _)| *id == 0x14) {
         let mut r = Bytes::new(child(atomic, 1)?); let frame = r.u32()? as usize; let geometry = r.u32()? as usize;
         let matrix = *frames.get(frame).ok_or("atomic frame missing")?;
         let normal_matrix = Mat3::from_mat4(matrix).inverse().transpose();
-        let (source, materials) = geometries.get(geometry).ok_or("atomic geometry missing")?;
+        let (source, materials,_) = geometries.get(geometry).ok_or("atomic geometry missing")?;
         let vertex_base = mesh.vertices.len() as u32; let material_base = material_list.len() as u32;
         for vertex in &source.vertices {
             let mut v = *vertex;
@@ -112,5 +117,5 @@ pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>)> {
         material_list.extend(materials.iter().cloned());
     }
     if mesh.vertices.is_empty() { return Err("DFF has no visible atomics".into()); }
-    Ok((mesh, material_list))
+    Ok((mesh, material_list,warnings))
 }

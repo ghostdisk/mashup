@@ -5,7 +5,7 @@ pub mod runtime;
 
 use bevy::prelude::*;
 use serde_json::Value;
-use std::{fs, path::{Component, Path, PathBuf}};
+use std::{collections::BTreeSet, fs, path::{Component, Path, PathBuf}};
 
 pub type Result<T> = std::result::Result<T, String>;
 
@@ -81,9 +81,16 @@ impl MapPackage {
             }
         }
         Bounds::from_json(&manifest["bounds"])?;
-        manifest["chunks"].as_array().ok_or("missing chunks")?;
+        let root=path.parent().unwrap_or(Path::new(".")).to_owned();
+        let mut identities=BTreeSet::new();
+        for chunk in manifest["chunks"].as_array().ok_or("missing chunks")? {
+            let id=chunk["id"].as_str().ok_or("chunk missing identity")?;
+            if !identities.insert(id) {return Err(format!("duplicate chunk {id}"));}
+            Bounds::from_json(&chunk["bounds"]).map_err(|e|format!("chunk {id}: {e}"))?;
+            payload_path(&root,chunk["payload"].as_str().ok_or("chunk missing payload")?)?;
+        }
         manifest["models"].as_object().ok_or("missing models")?;
-        Ok(Self { root: path.parent().unwrap_or(Path::new(".")).to_owned(), manifest })
+        Ok(Self { root, manifest })
     }
     pub fn chunk(&self, descriptor: &Value) -> Result<Value> {
         let id = descriptor["id"].as_str().ok_or("chunk missing identity")?;

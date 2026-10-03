@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
-pub struct Definition { pub id: i32, pub name: String, pub txd: String, pub draw_distance: f32, pub flags: u32 }
+pub struct Definition { pub id: i32, pub name: String, pub txd: String, pub draw_distance: f32, pub flags: u32, pub animation: Option<String> }
 pub struct Instance { pub model: i32, pub position: Vec3, pub rotation: Quat, pub interior: i32, pub lod: i32, pub source: String, pub index: usize }
 pub fn lines(text: &str) -> impl Iterator<Item=String> + '_ {
     text.lines().map(|line| line.split('#').next().unwrap_or("").trim().to_lowercase()).filter(|line| !line.is_empty())
@@ -15,12 +15,14 @@ pub fn ide(text: &str, models: &mut BTreeMap<i32, Definition>, parents: &mut BTr
         if !line.contains(',') { section=line; continue; }
         let fields: Vec<_> = line.split(',').map(str::trim).collect();
         if section == "txdp" && fields.len()>=2 { parents.insert(fields[0].into(),fields[1].into()); }
-        if (section=="objs" || section=="tobj") && fields.len()>=5 {
+        if (section=="objs" || section=="tobj" || section=="anim") && fields.len()>=5 {
             let id=fields[0].parse().map_err(|_| format!("invalid IDE {line}"))?;
-            // SA uses the single draw-distance form; older multi-distance forms are rejected.
-            let draw_distance=fields[3].parse().map_err(|_| format!("invalid IDE distance {line}"))?;
-            let flags=fields[4].parse().map_err(|_| format!("invalid IDE flags {line}"))?;
-            models.insert(id,Definition{id,name:fields[1].into(),txd:fields[2].into(),draw_distance,flags});
+            // Animated exterior props have an animation-dictionary field before
+            // distance. The legacy default.ide also uses a single-mesh count.
+            let distance_index=if section=="anim" || (section=="objs" && fields.len()==6 && fields[3]=="1") {4}else{3};
+            let draw_distance=fields.get(distance_index).ok_or("missing IDE distance")?.parse().map_err(|_| format!("invalid IDE distance {line}"))?;
+            let flags=fields.get(distance_index+1).ok_or("missing IDE flags")?.parse().map_err(|_| format!("invalid IDE flags {line}"))?;
+            models.insert(id,Definition{id,name:fields[1].into(),txd:fields[2].into(),draw_distance,flags,animation:if section=="anim" {Some(fields[3].into())}else{None}});
         }
     }
     Ok(())

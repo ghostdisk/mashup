@@ -46,12 +46,17 @@ impl MapRuntime {
         for part in &data.parts {
             let material=handles.get(part.material as usize).ok_or("mesh material reference missing")?.clone();
             let mut mesh=Mesh::new(PrimitiveTopology::TriangleList,RenderAssetUsages::MAIN_WORLD|RenderAssetUsages::RENDER_WORLD);
-            // Preserve indexed source data and per-vertex baked lighting.
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,data.vertices.iter().map(|v|v.position).collect::<Vec<_>>());
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL,data.vertices.iter().map(|v|v.normal).collect::<Vec<_>>());
-            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0,data.vertices.iter().map(|v|v.uv).collect::<Vec<_>>());
-            mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR,data.vertices.iter().map(|v|v.color).collect::<Vec<_>>());
-            mesh.insert_indices(Indices::U32(data.indices[part.first as usize..(part.first+part.count) as usize].to_vec()));
+            // A material part owns only its referenced vertices, rather than
+            // replicating the complete model once for every material.
+            let mut remap=vec![u32::MAX;data.vertices.len()];let mut vertices=Vec::new();let mut indices=Vec::new();
+            for &source in &data.indices[part.first as usize..(part.first+part.count) as usize] {
+                let target=&mut remap[source as usize];if *target==u32::MAX {*target=vertices.len() as u32;vertices.push(data.vertices[source as usize]);}indices.push(*target);
+            }
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,vertices.iter().map(|v|v.position).collect::<Vec<_>>());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL,vertices.iter().map(|v|v.normal).collect::<Vec<_>>());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0,vertices.iter().map(|v|v.uv).collect::<Vec<_>>());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR,vertices.iter().map(|v|v.color).collect::<Vec<_>>());
+            mesh.insert_indices(Indices::U32(indices));
             parts.push((meshes.add(mesh),material));
         }
         self.models.insert(id.into(),RuntimeModel{parts,collision,lod:model["lod"]==true});Ok(())

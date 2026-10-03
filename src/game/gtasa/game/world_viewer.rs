@@ -19,7 +19,7 @@ impl Plugin for GtaWorldViewerPlugin {
 }
 fn setup(mut commands:Commands,package:Res<MapPackage>,focus:Res<StreamingFocus>) {
     let position=focus.position+Vec3::Y*35.0;let yaw=package.manifest["spawns"][0]["yaw"].as_f64().unwrap_or(0.0) as f32;let pitch=-0.3;
-    commands.spawn((WorldCamera{yaw,pitch,grabbed:false,body_collision:false,hull:Hull::Standing,spawn:position},Camera3d::default(),Projection::Perspective(PerspectiveProjection{near:0.05,far:5000.0,..default()}),Transform::from_translation(position).with_rotation(Quat::from_euler(EulerRot::YXZ,yaw,pitch,0.0))));
+    commands.spawn((WorldCamera{yaw,pitch,grabbed:false,body_collision:false,hull:Hull::Standing,spawn:position},Camera3d::default(),Projection::Perspective(PerspectiveProjection{near:0.05,far:5000.0,..default()}),DistanceFog{color:Color::srgb(0.46,0.67,0.85),falloff:FogFalloff::Linear{start:focus.radius*0.7,end:focus.radius},..default()},Transform::from_translation(position).with_rotation(Quat::from_euler(EulerRot::YXZ,yaw,pitch,0.0))));
     commands.spawn((DirectionalLight{illuminance:9000.0,..default()},Transform::from_rotation(Quat::from_euler(EulerRot::XYZ,-0.8,0.3,0.0))));
     commands.spawn((WorldHud,Text::new("Loading San Andreas"),TextFont::from_font_size(17.0),TextColor(Color::WHITE),Node{position_type:PositionType::Absolute,top:px(16),left:px(16),..default()}));
 }

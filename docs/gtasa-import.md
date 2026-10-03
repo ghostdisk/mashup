@@ -17,9 +17,9 @@ explicitly and preserve peers' programs/analysis.
 Use dev builds of this binary only:
 
 ```powershell
-cargo build --locked --bin mashup-gtasa
-cargo run --locked --bin mashup-gtasa -- --import
-cargo run --locked --bin mashup-gtasa
+cargo build --locked --bin mashup-gtasa --target-dir target
+cargo run --locked --bin mashup-gtasa --target-dir target -- --import
+cargo run --locked --bin mashup-gtasa --target-dir target
 ```
 
 The installation defaults to
@@ -29,6 +29,10 @@ modification. Output defaults to `assets/imported/gtasa/main` and stays ignored
 by Git. Runtime captures and query observations stay in `user_data/gtasa`.
 `--destination PATH` changes the import destination; `--map PATH` changes the
 runtime package. Runtime packages must be inside this checkout's `assets/`.
+
+This worktree uses its own `target/` directory. Shared Cargo outputs were found
+to reuse library artifacts across divergent agent worktrees; preserve existing
+shared artifacts and other agents' running binaries.
 
 For an intermediate Grove Street region, import with `--region-radius 550`.
 The center is currently GTA `(2490, -1670, 13)`. Region selection uses horizontal
@@ -45,6 +49,9 @@ F12 saves a screenshot and `world-session.json` with observed downward point,
 standing and crouching traces. `--capture-after SECONDS` also requests a capture
 during an ordinary interactive runtime session; it does not script gameplay or
 automatically exit. `--stream-radius METERS` defaults to 600.
+`--position X,Y,Z` selects an inspection focus in Bevy meters; the camera starts
+35 meters above it. `--capture-label NAME` stores that view's outputs in
+`user_data/gtasa/NAME` for comparisons between cities.
 
 ## Observed source layout
 
@@ -70,6 +77,10 @@ Texture dictionary parents from IDE `txdp` sections are resolved. DFF material
 color, first UV set, indexed triangles, frame/atomic transforms and baked vertex
 colors are preserved. Native geometry, empty geometry, invalid source transforms
 and unresolved texture references are reported rather than silently invented.
+IDE `anim` definitions are included as static poses, with their source animation
+dictionary retained. Observed nonfinite UV components in five source models are
+replaced with zero and reported per model; finite positions and independent COL
+geometry are preserved. No missing geometry is synthesized from a bad UV.
 
 Working conversion is GTA `(x,y,z)` to Bevy `(x,z,-y)` at one meter per source
 unit. Source IPL quaternions are conjugated and transformed by this basis.
@@ -116,9 +127,25 @@ the road at Y `12.343752`; standing stopped at `13.258148` and crouching at
 observations against imported source data, not automated tests. Full-world
 coverage and source fidelity remain separate milestones.
 
+The area-0 import pass retained all 44,970 area-0 placements
+from the 50,935 observed source placements, with all 11,243 referenced model
+definitions and 564 chunks. Of these, 38,884 are recognized detailed instances
+and 40,683 reference source collision. The report lists 226 unresolved texture
+references, five model-level UV repair notes (28 components total) and the
+excluded legacy pedestrian collision archive. No referenced exterior definition
+or geometry was skipped in that pass. Runtime review in San Fierro then exposed
+missing ground at the station because area 13 had been excluded. The importer
+now selects that area too; a fresh import and city runtime review remain pending
+while compiler CPU limits are installed. These counts describe the previous
+area-0 package, not complete exterior or gameplay fidelity.
+
 Import counts, excluded interiors, missing definitions, skipped DFFs, unresolved
 textures and other warnings are recorded in `import-report.json`. Exterior
-selection uses the low byte of the source interior field; upper flags are kept.
+selection uses the low byte of the source interior field, retaining area 0 and
+area 13; upper flags are kept. Area 13 includes buildings visible across interiors,
+including `station03_SFS` around San Fierro's station. Filtering it as an ordinary
+interior removed both visible ground and its collision. This selection is supported
+by the installed IPL records and the [MTA building documentation](https://wiki.multitheftauto.com/wiki/CreateBuilding).
 LOD placements are retained in the package, but the initial runtime renders
 detailed models and suppresses models recognized by their LOD names. Exact
 source LOD linking and distance policy remain to be implemented.
@@ -129,6 +156,8 @@ implemented by this first world checkpoint. Collision is source geometry, not
 render-mesh approximation; triangle surfaces have no inferred closed volume.
 The loader currently decodes a chunk synchronously with a per-tick chunk budget;
 background I/O and finer frame-time budgets should follow real full-world traces.
+The inspector fades distant geometry into sky-colored fog near the streaming
+radius; exact GTA weather/fog and distant LOD presentation remain future work.
 
 Next milestones are operationally verified map coverage/placement/materials,
 full-world loading refinements and GTA character/controller mechanics supported
@@ -139,7 +168,16 @@ The supplied Steam executable is 5,685,688 bytes, SHA-256
 `8e09ec7aff2061da70d13cc7ebe5966bd9d16660d77d483608f5b8496bcf0bd3`.
 Address evidence must identify this binary rather than assume an older retail
 executable's layout. The available shared Ghidra instance uses project `mashup`;
-GTA had not yet been imported when the world pipeline started.
+GTA is now imported as `/gtasa/gta_sa.exe`, analyzed and saved, with 21,016
+functions. Useful RTTI anchors include `CPlayerPed` at `00944c38`,
+`CTaskSimplePlayerOnFoot` at `00948268`, and `CTaskSimpleGoToPoint` at `00947868`.
+These are type-name data addresses, not identified movement entry points yet.
+Class namespaces exist, but member-function associations have not been recovered.
+The MCP's xref group is loaded server-side but its tools have not appeared in the
+client tool catalog. Inline Ghidra scripts are disabled in the existing server;
+do not treat RTTI anchors or auto-analysis completion as reversed mechanics.
+The initial import tool timed out while analysis ran; querying the project and
+analysis status confirmed completion before saving. Do not duplicate the import.
 
 Layout references consulted during original implementation:
 [RenderWare stream layout](https://formats.kaitai.io/renderware_binary_stream/),
