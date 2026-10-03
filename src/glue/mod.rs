@@ -9,3 +9,5 @@ pub mod sandbox;
 #[cfg(feature = "vr")]
 pub mod vr_room;
 pub mod npc_demo;
+#[cfg(feature = "vr")]
+pub mod vr_controls;

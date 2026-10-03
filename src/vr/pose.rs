@@ -23,6 +23,16 @@ pub struct BodyTracking {
     pub status: String,
 }
 
+/// Hand trigger state populated by a tracking backend. Values remain false when
+/// the runtime has no active controller binding.
+#[derive(Resource, Default, Clone, Copy, Debug)]
+pub struct VrButtons {
+    pub left_trigger: bool,
+    pub right_trigger: bool,
+    pub left_stick: Vec2,
+    pub right_stick: Vec2,
+}
+
 #[derive(Resource, Clone)]
 pub struct VrConfig {
     pub model: String,

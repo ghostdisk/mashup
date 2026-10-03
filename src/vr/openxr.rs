@@ -1,5 +1,5 @@
 //! OpenXR adapter: standard grip poses, checked tracking validity and session cleanup.
-use super::pose::{BodyTracking, TrackedPose, VrSystems};
+use super::pose::{BodyTracking, TrackedPose, VrButtons, VrSystems};
 use bevy::prelude::*;
 use bevy_mod_openxr::{
     action_binding::{OxrSendActionBindings, OxrSuggestActionBinding},
@@ -13,12 +13,14 @@ use bevy_mod_xr::{
     session::{XrPreDestroySession, XrSessionCreated, XrState, XrTrackingRoot},
     spaces::XrPrimaryReferenceSpace,
 };
-use openxr::{Action, ActionSet, Path, Posef};
+use openxr::{Action, ActionSet, Path, Posef, Vector2f};
 
 #[derive(Resource)]
 struct GripActions {
     set: ActionSet,
     hands: [Action<Posef>; 2],
+    triggers: [Action<f32>; 2],
+    sticks: [Action<Vector2f>; 2],
 }
 #[derive(Resource)]
 struct GripSpaces([bevy_mod_xr::spaces::XrSpace; 2]);
@@ -29,6 +31,7 @@ pub struct OpenXrTrackingPlugin;
 impl Plugin for OpenXrTrackingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BodyTracking>()
+            .init_resource::<VrButtons>()
             .insert_resource(RecenterRequested(true))
             .add_systems(Startup, create_actions.run_if(openxr_session_available))
             .add_systems(OxrSendActionBindings, suggest_bindings)
@@ -54,9 +57,15 @@ fn create_actions(instance: Res<OxrInstance>, mut commands: Commands) {
         let set = instance.create_action_set("mashup_body", "Mashup body tracking", 0)?;
         let left = set.create_action::<Posef>("left_grip", "Left hand grip", &[])?;
         let right = set.create_action::<Posef>("right_grip", "Right hand grip", &[])?;
+        let left_trigger = set.create_action::<f32>("left_trigger", "Left hand trigger", &[])?;
+        let right_trigger = set.create_action::<f32>("right_trigger", "Right hand trigger", &[])?;
+        let left_stick = set.create_action::<Vector2f>("left_stick", "Left thumbstick", &[])?;
+        let right_stick = set.create_action::<Vector2f>("right_stick", "Right thumbstick", &[])?;
         Ok(GripActions {
             set,
             hands: [left, right],
+            triggers: [left_trigger, right_trigger],
+            sticks: [left_stick, right_stick],
         })
     })();
     let actions = match result {
@@ -90,6 +99,26 @@ fn suggest_bindings(
                 action: action.as_raw(),
                 interaction_profile: profile.into(),
                 bindings: vec![format!("/user/hand/{side}/input/grip/pose").into()],
+            });
+        }
+        for (action, side) in actions.triggers.iter().zip(["left", "right"]) {
+            bindings.write(OxrSuggestActionBinding {
+                action: action.as_raw(),
+                interaction_profile: profile.into(),
+                bindings: vec![format!("/user/hand/{side}/input/trigger/value").into()],
+            });
+        }
+    }
+    for profile in [
+        "/interaction_profiles/oculus/touch_controller",
+        "/interaction_profiles/valve/index_controller",
+        "/interaction_profiles/microsoft/motion_controller",
+    ] {
+        for (action, side) in actions.sticks.iter().zip(["left", "right"]) {
+            bindings.write(OxrSuggestActionBinding {
+                action: action.as_raw(),
+                interaction_profile: profile.into(),
+                bindings: vec![format!("/user/hand/{side}/input/thumbstick").into()],
             });
         }
     }
@@ -173,7 +202,7 @@ fn cleanup_spaces(
 }
 
 fn sync_actions(actions: Option<Res<GripActions>>, mut sync: MessageWriter<OxrSyncActionSet>) {
-    if let Some(actions) = actions {
+    if let Some(actions) = actions.as_ref() {
         sync.write(OxrSyncActionSet(actions.set.clone()));
     }
 }
@@ -200,6 +229,7 @@ fn read_tracking(
     spaces: Option<Res<GripSpaces>>,
     roots: Query<&GlobalTransform, With<XrTrackingRoot>>,
     mut tracking: ResMut<BodyTracking>,
+    mut tracking_buttons: ResMut<VrButtons>,
 ) {
     tracking.head.valid = false;
     tracking.left.valid = false;
@@ -208,12 +238,21 @@ fn read_tracking(
         "OpenXR: {:?}",
         state.as_deref().unwrap_or(&XrState::Unavailable)
     );
+    *tracking_buttons = VrButtons::default();
     if state.as_deref() != Some(&XrState::Running) {
         return;
     }
     let (Some(session), Some(frame), Some(reference)) = (session, frame, reference) else {
         return;
     };
+    if let Some(actions) = actions.as_ref() {
+        let left = actions.triggers[0].state(&session, Path::NULL).map(|s| s.current_state >= 0.5).unwrap_or(false);
+        let right = actions.triggers[1].state(&session, Path::NULL).map(|s| s.current_state >= 0.5).unwrap_or(false);
+        let stick = |index: usize| actions.sticks[index].state(&session, Path::NULL)
+            .map(|state| Vec2::new(state.current_state.x, state.current_state.y).clamp_length_max(1.0))
+            .unwrap_or(Vec2::ZERO);
+        *tracking_buttons = VrButtons { left_trigger: left, right_trigger: right, left_stick: stick(0), right_stick: stick(1) };
+    }
     let root = roots.single().copied().unwrap_or(GlobalTransform::IDENTITY);
     let time = frame.predicted_display_time;
     if let Ok((flags, views)) = session.locate_views(
@@ -236,7 +275,7 @@ fn read_tracking(
             };
         }
     }
-    if let (Some(actions), Some(spaces)) = (actions, spaces) {
+    if let (Some(actions), Some(spaces)) = (actions.as_ref(), spaces) {
         let mut hands = [TrackedPose::default(); 2];
         for ((action, space), destination) in actions.hands.iter().zip(spaces.0).zip(&mut hands) {
             if !action.is_active(&session, Path::NULL).unwrap_or(false) {

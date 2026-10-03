@@ -46,6 +46,11 @@ name = "mashup-vr"
 path = "src/bin/mashup-vr.rs"
 required-features = ["vr"]
 
+[[bin]]
+name = "mashup-vr-controls"
+path = "src/bin/mashup-vr-controls.rs"
+required-features = ["vr"]
+
 [dependencies]
 bevy = { version = "0.19.1", default-features = false, features = ["3d", "ui"] }
 png = "0.18.1"

@@ -3,3 +3,5 @@
 
 pub mod first_person;
 pub mod keyboard;
+#[cfg(feature = "vr")]
+pub mod vr;
