@@ -43,6 +43,12 @@ artifacts remain compatible; changed feature sets may compile a new variant once
 Do not clean the shared cache or alter compiler profiles/flags for a single worker.
 Do not manually reuse another worktree's application artifacts.
 
+A worker sandbox may permit writes only inside its worktree, while the shared
+cache lives under the primary checkout. Use the narrow execution escalation for
+the authorized central-helper build when needed; automatic review handles that
+filesystem boundary. Do not change cache layout or ask for another routine build
+approval. Report an actual automatic-review rejection without bypassing it.
+
 ## Bootstrap and transition
 
 The helper bootstraps `tools/capped-rustc-v2.exe` directly under a conservative CPU
