@@ -82,8 +82,9 @@ or move the independent seams into appropriate modules.
 Push milestones to main and fetch/rebase often. Stage only owned changes. Build
 and run only the assigned binary in dev mode; follow `AGENTS.md`'s bans on
 formatters, linters, writing/running tests, and non-coordinator subagents. Separate
-worktrees can still share Cargo artifacts, so avoid broad builds or cleaning an
-active shared target directory. Coordinate exceptions when a real conflict arises.
+worktrees can still share Cargo artifacts, including stale library output across
+divergent source. Use private worktree targets as directed by `AGENTS.md`; avoid
+broad builds or cleaning an active shared target. Coordinate transitions.
 
 ## Continuing long-running ports
 

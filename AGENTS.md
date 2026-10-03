@@ -42,9 +42,12 @@ Use explicit commands such as `cargo build --locked --bin mashup-cstrike` and
 `cargo run --locked --bin mashup-cstrike`. Avoid broad builds that also replace
 another agent's executable. Always use dev builds.
 
-Coordinate shared target-directory changes and overlapping builds. If further
-artifact isolation is needed, use a per-agent target directory agreed with the
-coordinator. Do not clean another agent's build artifacts, replace its running
+Dedicated binaries do not isolate the shared library's cached artifacts. When
+worktrees have divergent source, use a private target directory (for example
+`$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'` in PowerShell).
+CS already uses a private target; use this default for new worktrees too.
+Coordinate any transition from a shared target. Do not clean another agent's
+build artifacts, replace its running
 executable, or stop its processes without coordinating first. Runtime captures,
 traces, and other generated outputs should also have game-specific destinations.
 
