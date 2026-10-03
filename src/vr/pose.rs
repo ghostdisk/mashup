@@ -48,7 +48,8 @@ pub fn simulated_tracking(seconds: f32) -> BodyTracking {
     let center = Vec3::new(0.12 * (seconds * 0.3).sin(), 1.68, 0.0);
     let rotation = Quat::from_rotation_y(yaw);
     let pose = |offset: Vec3, wrist: Quat| TrackedPose {
-        transform: Transform::from_translation(center + rotation * offset).with_rotation(rotation * wrist),
+        transform: Transform::from_translation(center + rotation * offset)
+            .with_rotation(rotation * wrist),
         valid: true,
     };
     BodyTracking {
@@ -56,10 +57,24 @@ pub fn simulated_tracking(seconds: f32) -> BodyTracking {
             transform: Transform::from_translation(center).with_rotation(rotation),
             valid: true,
         },
-        left: pose(Vec3::new(-0.38, -0.28 + 0.20 * seconds.sin(), -0.35),
-            Quat::from_euler(EulerRot::YXZ, 0.25 * seconds.sin(), 0.35 * (seconds * 0.7).sin(), 0.45 * (seconds * 0.8).sin())),
-        right: pose(Vec3::new(0.34, -0.55 + 0.10 * (seconds * 1.4).sin(), -0.28),
-            Quat::from_euler(EulerRot::YXZ, -0.3 * (seconds * 0.9).sin(), 0.4 * (seconds * 0.6).sin(), -0.5 * (seconds * 0.7).sin())),
+        left: pose(
+            Vec3::new(-0.38, -0.28 + 0.20 * seconds.sin(), -0.35),
+            Quat::from_euler(
+                EulerRot::YXZ,
+                0.25 * seconds.sin(),
+                0.35 * (seconds * 0.7).sin(),
+                0.45 * (seconds * 0.8).sin(),
+            ),
+        ),
+        right: pose(
+            Vec3::new(0.34, -0.55 + 0.10 * (seconds * 1.4).sin(), -0.28),
+            Quat::from_euler(
+                EulerRot::YXZ,
+                -0.3 * (seconds * 0.9).sin(),
+                0.4 * (seconds * 0.6).sin(),
+                -0.5 * (seconds * 0.7).sin(),
+            ),
+        ),
         status: "SIMULATED tracking — not a headset session".into(),
     }
 }

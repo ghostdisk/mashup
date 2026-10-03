@@ -161,7 +161,7 @@ pub fn load(path: &Path, installation: &Path, options: ImportOptions) -> Result<
             roots.push(valve);
         }
     }
-    let mut warnings=vec!["Static preview: BSP lightmaps, PVS, skyboxes, water effects, collision and entity gameplay are not yet converted".into()];
+    let mut warnings=vec!["Static map: BSP lightmaps, PVS, skyboxes, water effects and entity gameplay are not yet converted; collision catalog includes point, standing and crouching hulls".into()];
     if let Some(list) = world.get("wad") {
         for name in list.split(';').filter(|name| !name.is_empty()) {
             let filename = name.rsplit(['/', '\\']).next().unwrap_or_default();
@@ -323,7 +323,8 @@ pub fn load(path: &Path, installation: &Path, options: ImportOptions) -> Result<
         })
         .map(entity_origin)
         .unwrap_or(Vec3::ZERO);
-    let metadata = json!({"entities":entities,"entity_coordinates":"original GoldSrc units; use declared scale and axes","lighting_bytes":lumps[8].0.len(),"visibility_bytes":lumps[4].0.len(),"clipnodes":lumps[9].0.len()/8});
+    let collision = super::clip::catalog(&lumps, options)?;
+    let metadata = json!({"entities":entities,"entity_coordinates":"original GoldSrc units; use declared scale and axes","lighting_bytes":lumps[8].0.len(),"visibility_bytes":lumps[4].0.len(),"clipnodes":lumps[9].0.len()/8,"collision":collision});
     Ok(Map {
         name: path
             .file_stem()

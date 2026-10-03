@@ -43,10 +43,11 @@ selected game directory, then the sibling `valve/` directory; hard-coded paths
 inside a map are never followed. Missing textures get a visible checkerboard and
 a manifest warning. Brush entities are imported at their initial positions.
 
-BSP lightmaps, visibility/PVS, skyboxes, animated water/texture effects, collision,
-brush rotation and entity behavior are not implemented yet. Original entity data,
-light/visibility sizes and clipnode counts are preserved as metadata for subsequent
-work. This establishes the asset pipeline; movement and physics are separate tasks.
+BSP lightmaps, visibility/PVS, skyboxes, animated water/texture effects,
+brush rotation and entity behavior are not implemented yet. The sidecar now contains
+the original point, standing and crouching collision trees in meter space, along
+with entity data and light/visibility sizes. The mechanics lab consumes these trees
+for static hull sweeps; movement and physics remain separate from conversion.
 
 ## Inspect converted assets
 

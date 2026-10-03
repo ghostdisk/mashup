@@ -3,6 +3,7 @@ use mashup::{
     MashupPlugin,
     glue::{
         asset_viewer::{AssetViewerPlugin, ViewerAssets, imported_assets},
+        first_person::{FirstPersonGamePlugin, FpsOptions},
         sandbox::SandboxPlugin,
     },
 };
@@ -19,6 +20,11 @@ fn main() {
     };
     let args: Vec<_> = std::env::args().skip(1).collect();
     let sandbox = args.iter().any(|arg| arg == "--sandbox");
+    let play = args.iter().any(|arg| arg == "--play");
+    let mut map = "imported/cstrike/maps/de_dust2.glb".to_owned();
+    let mut weapon = "imported/cstrike/models/v_ak47.glb".to_owned();
+    let mut half_life = false;
+    let smoke_test = args.iter().any(|arg| arg == "--smoke-test");
     let mut files = Vec::new();
     let mut index = 0;
     while index < args.len() {
@@ -32,9 +38,32 @@ fn main() {
                 files.push(path.clone());
             }
             "--sandbox" => {}
+            "--play" | "--smoke-test" => {}
+            "--map" => {
+                index += 1;
+                map = args
+                    .get(index)
+                    .expect("--map requires a converted GLB path")
+                    .clone();
+            }
+            "--weapon" => {
+                index += 1;
+                weapon = args
+                    .get(index)
+                    .expect("--weapon requires a converted GLB path")
+                    .clone();
+            }
+            "--movement" => {
+                index += 1;
+                half_life = match args.get(index).map(String::as_str) {
+                    Some("hl") => true,
+                    Some("cstrike") => false,
+                    _ => panic!("--movement must be hl or cstrike"),
+                };
+            }
             "--help" | "-h" => {
                 println!(
-                    "mashup [--sandbox] [--view imported/<game>/<model>.glb ...]\nWithout arguments, view local imports if present; otherwise open the starter sandbox."
+                    "mashup [--sandbox] [--view imported/<game>/<model>.glb ...]\nmashup --play [--map imported/cstrike/maps/de_dust2.glb] [--weapon imported/cstrike/models/v_ak47.glb] [--movement cstrike|hl] [--smoke-test]\nWithout arguments, view local imports if present; otherwise open the starter sandbox."
                 );
                 return;
             }
@@ -65,7 +94,16 @@ fn main() {
             }),
     )
     .add_plugins(MashupPlugin);
-    if files.is_empty() || sandbox {
+    if play {
+        app.insert_resource(FpsOptions {
+            asset_root,
+            map,
+            view_model: weapon,
+            half_life,
+            smoke_test,
+        })
+        .add_plugins(FirstPersonGamePlugin);
+    } else if files.is_empty() || sandbox {
         app.add_plugins(SandboxPlugin);
     } else {
         app.insert_resource(ViewerAssets(files, asset_root))

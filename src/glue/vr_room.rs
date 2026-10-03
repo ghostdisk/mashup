@@ -25,7 +25,13 @@ struct Simulation {
 }
 impl Default for Simulation {
     fn default() -> Self {
-        Self { paused: false, seconds: 0.0, first_person: true, pitch: 0.0, yaw: 0.0 }
+        Self {
+            paused: false,
+            seconds: 0.0,
+            first_person: true,
+            pitch: 0.0,
+            yaw: 0.0,
+        }
     }
 }
 #[derive(Component)]
@@ -215,12 +221,22 @@ fn controls(
         simulation.paused = !simulation.paused;
     }
     if config.simulate {
-        if keys.just_pressed(KeyCode::F1) { simulation.first_person = !simulation.first_person; }
+        if keys.just_pressed(KeyCode::F1) {
+            simulation.first_person = !simulation.first_person;
+        }
         let step = time.delta_secs() * 1.2;
-        if keys.pressed(KeyCode::ArrowUp) { simulation.pitch += step; }
-        if keys.pressed(KeyCode::ArrowDown) { simulation.pitch -= step; }
-        if keys.pressed(KeyCode::ArrowLeft) { simulation.yaw += step; }
-        if keys.pressed(KeyCode::ArrowRight) { simulation.yaw -= step; }
+        if keys.pressed(KeyCode::ArrowUp) {
+            simulation.pitch += step;
+        }
+        if keys.pressed(KeyCode::ArrowDown) {
+            simulation.pitch -= step;
+        }
+        if keys.pressed(KeyCode::ArrowLeft) {
+            simulation.yaw += step;
+        }
+        if keys.pressed(KeyCode::ArrowRight) {
+            simulation.yaw -= step;
+        }
         simulation.pitch = simulation.pitch.clamp(-1.45, 1.45);
     }
 }
@@ -238,20 +254,26 @@ fn simulate(
         simulation.seconds += time.delta_secs();
     }
     *tracking = simulated_tracking(simulation.seconds);
-    tracking.head.transform.rotation *= Quat::from_euler(EulerRot::YXZ, simulation.yaw, simulation.pitch, 0.0);
+    tracking.head.transform.rotation *=
+        Quat::from_euler(EulerRot::YXZ, simulation.yaw, simulation.pitch, 0.0);
 }
 
 fn update_preview_camera(
-    config: Res<VrConfig>, tracking: Res<BodyTracking>, simulation: Res<Simulation>,
+    config: Res<VrConfig>,
+    tracking: Res<BodyTracking>,
+    simulation: Res<Simulation>,
     mut cameras: Query<(&mut Transform, &mut RenderLayers), With<SpectatorCamera>>,
 ) {
-    if !config.simulate { return; }
+    if !config.simulate {
+        return;
+    }
     for (mut transform, mut layers) in &mut cameras {
         if simulation.first_person {
             *transform = tracking.head.transform;
             *layers = RenderLayers::from_layers(&[0, 2]);
         } else {
-            *transform = Transform::from_xyz(2.8, 2.0, 3.2).looking_at(Vec3::new(0.0, 1.25, -2.4), Vec3::Y);
+            *transform =
+                Transform::from_xyz(2.8, 2.0, 3.2).looking_at(Vec3::new(0.0, 1.25, -2.4), Vec3::Y);
             *layers = RenderLayers::from_layers(&[0, 1]);
         }
     }

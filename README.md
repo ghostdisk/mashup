@@ -27,8 +27,8 @@ The runtime uses **one unit = one meter**.
 
 Without imports, or with `cargo run --locked -- --sandbox`, it opens the procedural
 capsule demo. That demo moves with **WASD/arrows**, uses a fixed camera, and needs no
-source game. Gameplay, collision and exact source-game movement are not implemented
-yet. UI uses Bevy's bundled font.
+source game. The demo is separate from the playable mechanics lab below.
+UI uses Bevy's bundled font.
 
 If the Windows Vulkan backend emits startup validation messages, try DirectX 12.
 In PowerShell:
@@ -43,6 +43,23 @@ automatic selection: `Remove-Item Env:WGPU_BACKEND`.
 
 The first build compiles Bevy and takes time. Dependencies are optimized in dev
 builds so the renderer runs smoothly. `Cargo.lock` is committed for reproducibility.
+
+## Play the CS mechanics lab
+
+Import your installed `maps/de_dust2.bsp` and `models/v_ak47.mdl`, then run:
+
+```sh
+cargo run --locked -- --play
+```
+
+The first-person lab has map collision, running, air strafing, timed jumps,
+crouching, AK-47 fire/reload animation, and a speed/ammo display. WASD/mouse move
+and look; Space/wheel jumps; Ctrl ducks; left mouse fires; R reloads.
+F12 saves a native game screenshot; Escape releases the mouse; F10 exits.
+`--movement hl` selects Half-Life movement with the same assets.
+Exact 1:1 source-game equivalence remains under validation.
+See [the mechanics guide](docs/cs16-mechanics.md) for import commands, offline
+reference tooling, architecture, observed rules, checks, and fidelity gaps.
 
 ## Optional VR mashup
 

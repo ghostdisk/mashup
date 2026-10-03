@@ -1,9 +1,12 @@
 //! Tracking-driven humanoid posing. No OpenXR types or game mechanics are used here.
 use super::pose::{BodyTracking, VrSystems, head_yaw};
 use bevy::{
-    app::AnimationSystems, camera::visibility::RenderLayers, prelude::*,
+    app::AnimationSystems,
+    camera::visibility::RenderLayers,
     mesh::{Indices, VertexAttributeValues, skinning::SkinnedMesh},
-    transform::TransformSystems, world_serialization::WorldInstanceReady,
+    prelude::*,
+    transform::TransformSystems,
+    world_serialization::WorldInstanceReady,
 };
 use std::collections::HashMap;
 
@@ -14,7 +17,9 @@ pub struct VrAvatar;
 struct PendingAvatarBinding;
 
 #[derive(Component)]
-struct FirstPersonBody { source: Entity }
+struct FirstPersonBody {
+    source: Entity,
+}
 
 /// Semantic bone mapping supplied by the converted asset.
 #[derive(Clone)]
@@ -26,7 +31,9 @@ struct HumanoidBoneNames {
 }
 impl HumanoidBoneNames {
     fn from_import(value: &serde_json::Value) -> Option<Self> {
-        if value["version"].as_u64()? != 1 || value["hand_frame"].as_str()? != "grip" { return None; }
+        if value["version"].as_u64()? != 1 || value["hand_frame"].as_str()? != "grip" {
+            return None;
+        }
         Some(Self {
             root: value["root"].as_str()?.into(),
             head: value["head"].as_str()?.into(),
@@ -67,8 +74,12 @@ impl Plugin for VrAvatarPlugin {
             )
             .add_systems(PostUpdate, pose_avatars.in_set(VrSystems::Avatar))
             .add_systems(PreUpdate, configure_headset_cameras)
-            .add_systems(PostUpdate, sync_first_person_body
-                .after(VrSystems::Reflection).before(TransformSystems::Propagate));
+            .add_systems(
+                PostUpdate,
+                sync_first_person_body
+                    .after(VrSystems::Reflection)
+                    .before(TransformSystems::Propagate),
+            );
     }
 }
 
@@ -168,7 +179,8 @@ fn bind_avatar(world: &mut World, entity: Entity) {
     };
     let shoulders = global(arms[1][0]).translation - global(arms[0][0]).translation;
     let model_right = Vec3::new(shoulders.x, 0.0, shoulders.z);
-    let model_to_tracking = model_right.try_normalize()
+    let model_to_tracking = model_right
+        .try_normalize()
         .map(|right| Quat::from_rotation_arc(right, Vec3::X))
         .unwrap_or(Quat::IDENTITY);
     let rig = AvatarRig {
@@ -195,7 +207,9 @@ fn configure_headset_cameras(
     cameras: Query<Entity, Added<bevy_mod_xr::camera::XrCamera>>,
 ) {
     for camera in &cameras {
-        commands.entity(camera).insert((RenderLayers::from_layers(&[0, 2]), Msaa::Off));
+        commands
+            .entity(camera)
+            .insert((RenderLayers::from_layers(&[0, 2]), Msaa::Off));
     }
 }
 
@@ -204,35 +218,82 @@ fn create_first_person_body(world: &mut World, entities: &[Entity], head: Entity
     descendants(world, head, &mut hidden_bones);
     // Neck triangles can cross the eye near plane too. Hide them only in the
     // camera mesh; joint transforms and the mirrored/spectator head stay intact.
-    if let Some(parent) = world.get::<ChildOf>(head) { hidden_bones.push(parent.parent()); }
+    if let Some(parent) = world.get::<ChildOf>(head) {
+        hidden_bones.push(parent.parent());
+    }
     for &source in entities {
-        let Some(handle) = world.get::<Mesh3d>(source).cloned() else { continue; };
-        let Some(skin) = world.get::<SkinnedMesh>(source).cloned() else { continue; };
-        let Some(material) = world.get::<MeshMaterial3d<StandardMaterial>>(source).cloned() else { continue; };
-        let Some(mut mesh) = world.resource::<Assets<Mesh>>().get(&handle.0).cloned() else { continue; };
-        let Some(VertexAttributeValues::Uint16x4(joints)) = mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX) else { continue; };
-        let Some(VertexAttributeValues::Float32x4(weights)) = mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT) else { continue; };
-        let vertex_is_head = |index: usize| joints[index].iter().zip(weights[index]).any(|(&joint, weight)| {
-            weight > 0.001 && skin.joints.get(joint as usize).is_some_and(|e| hidden_bones.contains(e))
-        });
-        let indices: Vec<u32> = mesh.indices().map(|indices| indices.iter().map(|i| i as u32).collect())
+        let Some(handle) = world.get::<Mesh3d>(source).cloned() else {
+            continue;
+        };
+        let Some(skin) = world.get::<SkinnedMesh>(source).cloned() else {
+            continue;
+        };
+        let Some(material) = world
+            .get::<MeshMaterial3d<StandardMaterial>>(source)
+            .cloned()
+        else {
+            continue;
+        };
+        let Some(mut mesh) = world.resource::<Assets<Mesh>>().get(&handle.0).cloned() else {
+            continue;
+        };
+        let Some(VertexAttributeValues::Uint16x4(joints)) =
+            mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX)
+        else {
+            continue;
+        };
+        let Some(VertexAttributeValues::Float32x4(weights)) =
+            mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT)
+        else {
+            continue;
+        };
+        let vertex_is_head = |index: usize| {
+            joints[index]
+                .iter()
+                .zip(weights[index])
+                .any(|(&joint, weight)| {
+                    weight > 0.001
+                        && skin
+                            .joints
+                            .get(joint as usize)
+                            .is_some_and(|e| hidden_bones.contains(e))
+                })
+        };
+        let indices: Vec<u32> = mesh
+            .indices()
+            .map(|indices| indices.iter().map(|i| i as u32).collect())
             .unwrap_or_else(|| (0..joints.len() as u32).collect());
-        let body_indices: Vec<_> = indices.chunks_exact(3)
+        let body_indices: Vec<_> = indices
+            .chunks_exact(3)
             .filter(|triangle| !triangle.iter().any(|&i| vertex_is_head(i as usize)))
-            .flatten().copied().collect();
+            .flatten()
+            .copied()
+            .collect();
         mesh.insert_indices(Indices::U32(body_indices));
         let body_mesh = world.resource_mut::<Assets<Mesh>>().add(mesh);
-        world.spawn((Name::new("First-person body"), FirstPersonBody { source },
-            Mesh3d(body_mesh), material, skin, RenderLayers::layer(2), Transform::default()));
+        world.spawn((
+            Name::new("First-person body"),
+            FirstPersonBody { source },
+            Mesh3d(body_mesh),
+            material,
+            skin,
+            RenderLayers::layer(2),
+            Transform::default(),
+        ));
     }
 }
 
 fn sync_first_person_body(world: &mut World) {
-    let bodies: Vec<_> = world.query::<(Entity, &FirstPersonBody)>()
-        .iter(world).map(|(entity, body)| (entity, body.source)).collect();
+    let bodies: Vec<_> = world
+        .query::<(Entity, &FirstPersonBody)>()
+        .iter(world)
+        .map(|(entity, body)| (entity, body.source))
+        .collect();
     for (entity, source) in bodies {
         if let Some(global) = current_global(world, source) {
-            if let Some(mut transform) = world.get_mut::<Transform>(entity) { *transform = global.compute_transform(); }
+            if let Some(mut transform) = world.get_mut::<Transform>(entity) {
+                *transform = global.compute_transform();
+            }
         } else {
             world.entity_mut(entity).despawn();
         }

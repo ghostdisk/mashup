@@ -4,12 +4,14 @@ use bevy::prelude::*;
 
 pub mod animation;
 pub mod character;
+pub mod collision;
 pub mod controller;
 pub mod game;
 pub mod glue;
 pub mod importers;
 #[cfg(feature = "vr")]
 pub mod vr;
+pub mod weapon;
 
 /// Composition order for controllers and body movement.
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]

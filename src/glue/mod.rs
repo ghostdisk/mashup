@@ -2,6 +2,7 @@
 //! Game-specific modules should not depend on these particular compositions.
 
 pub mod asset_viewer;
+pub mod first_person;
 pub mod sandbox;
 #[cfg(feature = "vr")]
 pub mod vr_room;

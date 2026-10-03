@@ -159,21 +159,6 @@ fn recenter_origin(
     info!("VR room centered on current HMD position and heading");
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn invalid_runtime_values_are_not_used_as_targets() {
-        assert!(pose_transform(Posef::IDENTITY).is_some());
-        let mut pose = Posef::IDENTITY;
-        pose.position.y = f32::NAN;
-        assert!(pose_transform(pose).is_none());
-        pose = Posef::IDENTITY;
-        pose.orientation.w = 0.0;
-        assert!(pose_transform(pose).is_none());
-    }
-}
-
 fn cleanup_spaces(
     mut commands: Commands,
     session: Res<OxrSession>,
@@ -238,18 +223,17 @@ fn read_tracking(
     ) {
         let valid =
             openxr::ViewStateFlags::POSITION_VALID | openxr::ViewStateFlags::ORIENTATION_VALID;
-        if flags.contains(valid) && views.len() == 2 {
-            if let (Some(left), Some(right)) =
+        if flags.contains(valid)
+            && views.len() == 2
+            && let (Some(left), Some(right)) =
                 (pose_transform(views[0].pose), pose_transform(views[1].pose))
-            {
-                let center =
-                    Transform::from_translation((left.translation + right.translation) * 0.5)
-                        .with_rotation(left.rotation.slerp(right.rotation, 0.5));
-                tracking.head = TrackedPose {
-                    transform: (root * center).compute_transform(),
-                    valid: true,
-                };
-            }
+        {
+            let center = Transform::from_translation((left.translation + right.translation) * 0.5)
+                .with_rotation(left.rotation.slerp(right.rotation, 0.5));
+            tracking.head = TrackedPose {
+                transform: (root * center).compute_transform(),
+                valid: true,
+            };
         }
     }
     if let (Some(actions), Some(spaces)) = (actions, spaces) {
@@ -261,17 +245,32 @@ fn read_tracking(
             if let Ok(location) = session.locate_space(&space, &reference, time) {
                 let valid = openxr::SpaceLocationFlags::POSITION_VALID
                     | openxr::SpaceLocationFlags::ORIENTATION_VALID;
-                if location.location_flags.contains(valid) {
-                    if let Some(transform) = pose_transform(location.pose) {
-                        *destination = TrackedPose {
-                            transform: (root * transform).compute_transform(),
-                            valid: true,
-                        };
-                    }
+                if location.location_flags.contains(valid)
+                    && let Some(transform) = pose_transform(location.pose)
+                {
+                    *destination = TrackedPose {
+                        transform: (root * transform).compute_transform(),
+                        valid: true,
+                    };
                 }
             }
         }
         tracking.left = hands[0];
         tracking.right = hands[1];
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn invalid_runtime_values_are_not_used_as_targets() {
+        assert!(pose_transform(Posef::IDENTITY).is_some());
+        let mut pose = Posef::IDENTITY;
+        pose.position.y = f32::NAN;
+        assert!(pose_transform(pose).is_none());
+        pose = Posef::IDENTITY;
+        pose.orientation.w = 0.0;
+        assert!(pose_transform(pose).is_none());
     }
 }

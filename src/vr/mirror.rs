@@ -1,5 +1,8 @@
 //! A second scene with synchronized local poses and a reflected root transform.
-use super::{avatar::{AvatarRig, VrAvatar}, pose::VrSystems};
+use super::{
+    avatar::{AvatarRig, VrAvatar},
+    pose::VrSystems,
+};
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -72,15 +75,15 @@ fn bind_copies(
             continue;
         }
         for (_, child) in &destination {
-            if let Ok(handle) = meshes.get(*child) {
-                if let Some(material) = materials.get(&handle.0).cloned() {
-                    let reflected = materials.add(StandardMaterial {
-                        cull_mode: None,
-                        double_sided: true,
-                        ..material
-                    });
-                    commands.entity(*child).insert(MeshMaterial3d(reflected));
-                }
+            if let Ok(handle) = meshes.get(*child)
+                && let Some(material) = materials.get(&handle.0).cloned()
+            {
+                let reflected = materials.add(StandardMaterial {
+                    cull_mode: None,
+                    double_sided: true,
+                    ..material
+                });
+                commands.entity(*child).insert(MeshMaterial3d(reflected));
             }
         }
         commands.entity(entity).insert(PoseCopies(
@@ -99,16 +102,16 @@ fn sync_copies(
     mut transforms: Query<&mut Transform>,
 ) {
     for (entity, mirror, pairs) in &copies {
-        if let Ok(primary) = transforms.get(mirror.primary).copied() {
-            if let Ok(mut target) = transforms.get_mut(entity) {
-                *target = mirrored_root(primary, mirror.plane_z);
-            }
+        if let Ok(primary) = transforms.get(mirror.primary).copied()
+            && let Ok(mut target) = transforms.get_mut(entity)
+        {
+            *target = mirrored_root(primary, mirror.plane_z);
         }
         for &(primary, mirrored) in &pairs.0 {
-            if let Ok(pose) = transforms.get(primary).copied() {
-                if let Ok(mut target) = transforms.get_mut(mirrored) {
-                    *target = pose;
-                }
+            if let Ok(pose) = transforms.get(primary).copied()
+                && let Ok(mut target) = transforms.get_mut(mirrored)
+            {
+                *target = pose;
             }
         }
     }

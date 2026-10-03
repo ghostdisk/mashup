@@ -8,6 +8,7 @@ use bevy::math::{Mat3, Quat, Vec3};
 
 mod binary;
 pub mod bsp;
+mod clip;
 mod glb;
 mod humanoid;
 pub mod studio;

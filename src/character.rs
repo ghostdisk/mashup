@@ -13,3 +13,19 @@ pub struct Character;
 pub struct MovementIntent {
     pub velocity: Vec3,
 }
+
+/// Controller-neutral intent: adapters can be keyboard, replay, AI or VR.
+/// Movement axes are right/forward, before speed and game rules are applied.
+#[derive(Component, Default, Clone, Copy, Debug)]
+pub struct PlayerCommand {
+    pub movement: Vec2,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub jump: bool,
+    /// One simulation-tick pulse (e.g. mouse wheel); does not enable auto-bhop.
+    pub jump_pulse: bool,
+    pub crouch: bool,
+    pub walk: bool,
+    pub fire: bool,
+    pub reload: bool,
+}
