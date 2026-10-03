@@ -1,0 +1,77 @@
+# Shared systems and agent workflow
+
+Mashup combines worlds, assets, and mechanics from different games. The
+coordinator is the product owner of the shared specifications and integration
+direction. Game agents own their implementations and game-specific decisions.
+Support working features, notice duplication, and extract useful common contracts
+as they emerge. An incomplete global spec is not a reason to halt a game port.
+
+## Shared system register
+
+| Area | Current implementation | Direction |
+| --- | --- | --- |
+| Maps/worlds | GoldSrc GLB rendering plus BSP collision catalog; `CollisionWorld` boundary | Custom versioned shared map packages, multiple collision backends, large-world loading; see [maps.md](maps.md) |
+| Characters/controllers | `Character`, `PlayerCommand`, controller adapters, ordered intent/movement systems | A body can receive intent from keyboard, replay, AI, network, or VR; choose mechanics independently of the body asset and world |
+| Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`; CS AK-47 behavior/presentation | CS is expanding weapon profiles and switching; reuse common timing, equip/action, collision, and presentation boundaries |
+| Items/pickups | No shared pickup/inventory contract yet | Separate item definitions, world instances, pickup interaction, inventory ownership, and equipment; keep source-game restrictions in profiles |
+| Vehicles | No shared vehicle implementation yet | Shared occupancy/entry/exit and driver intent as needed; vehicle assets, handling profiles, and physical simulation remain replaceable |
+| World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
+
+This table is a status register, not a claim that planned systems already exist.
+Add focused specification documents when a working feature needs them; link them
+here. Keep the specifications current with actual code and known gaps.
+
+Across systems, define ownership of state, identity/reference semantics, units,
+coordinate conventions, intent/events, and capability requirements when relevant.
+Keep reusable contracts small enough that a second game can actually consume them.
+Importers preserve facts; game profiles supply rules; compositions choose the mix.
+
+## Current assignments
+
+| Chat | Workspace | Dedicated binary | Work |
+| --- | --- | --- | --- |
+| Coordinator | Primary `D:\Mashup` checkout | `mashup` | Product direction, living specs, ownership, integration support, continuation of unfinished game work |
+| CS | Own Git worktree | `mashup-cstrike` | CS reimplementation; next milestone is additional weapons and weapon selection/switching |
+| GTASA | Own Git worktree | `mashup-gtasa` | San Andreas reimplementation; first import the main map, then run CS movement/shooting on it |
+
+Only the coordinator uses the primary checkout. New game agents receive independent
+sidebar chats and their own worktrees/binaries. Each uses game-specific imported
+assets and runtime output destinations. Share libraries and interfaces, not
+executable ownership or mutable captures/log files.
+
+## How work proceeds
+
+Agents choose their implementation details, useful intermediate milestones, and
+ordinary build/run steps. The coordinator does not track every process or require
+routine approval. Notify peers/coordinator about meaningful shared-interface
+changes, overlapping edits, pushed milestones, and blockers. A brief heads-up is
+enough to continue unaffected work; request input only when there is an actual
+dependency or unresolved conflict.
+
+Keep game-specific work in its namespace and composition. For a shared feature,
+reuse existing contracts first. When a new seam is needed, describe the consumer
+need, implement a minimal useful boundary, and update the appropriate spec. Avoid
+duplicating movement, weapons, map loaders, or inventory logic across ports merely
+to get separate binaries. Coordinate edits to existing shared glue by responsibility
+or move the independent seams into appropriate modules.
+
+Push milestones to main and fetch/rebase often. Stage only owned changes. Build
+and run only the assigned binary in dev mode; follow `AGENTS.md`'s bans on
+formatters, linters, writing/running tests, and non-coordinator subagents. Separate
+worktrees can still share Cargo artifacts, so avoid broad builds or cleaning an
+active shared target directory. Coordinate exceptions when a real conflict arises.
+
+## Continuing long-running ports
+
+Game-port completion means the broader user objective is met, not that the latest
+checkpoint launched. If a chat goes idle with work remaining, the coordinator
+reads its result and gives it the next concrete milestone within the authorized
+port scope. If the previous step failed, address the blocker before expanding
+scope. Do not restart explicitly paused/cancelled work or bypass pending user
+questions, approvals, or usage limits.
+
+Background coordination stays quiet while work is active or unchanged. Avoid
+repeated wakeups, identical assignments, and per-build reports. Involve the user
+for a meaningful outcome, a product decision, or a blocker requiring their help.
+The first immediate continuation is CS weapon expansion; GTA's initial sequence
+is the main map pipeline followed by the first GTA-world/CS-mechanics mashup.

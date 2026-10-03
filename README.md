@@ -3,6 +3,10 @@
 A Rust + Bevy sandbox for combining locally imported game assets with
 interchangeable controllers, animation and mechanics.
 
+The [shared map specification](docs/maps.md) describes the evolving custom world
+format. [Shared systems and agent workflow](docs/shared-specs.md) tracks cross-game
+contracts, ownership, and the first San Andreas-world/CS-mechanics mashup.
+
 We distribute our engine application, original code and converters. Players
 must have each source game installed and explicitly import their own assets.
 Source-game files and converted content are never bundled with this repository

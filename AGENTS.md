@@ -25,10 +25,15 @@ source areas, and a dedicated binary named `mashup-<game>`. Each game-port agent
 must build and run its own binary. Reuse the shared core and put game-specific
 composition in that binary's glue; do not fork the core to isolate an executable.
 
+Only the coordinator uses the primary checkout at `D:\Mashup`. Every other agent
+must work in its own Git worktree, including agents created as independent chats.
+
 Current binary ownership:
 
 - `mashup`: coordinator-owned shared launcher.
 - `mashup-cstrike`: the `CS` agent's Counter-Strike port.
+- `mashup-gtasa`: the `GTASA` agent's San Andreas port and first GTA-map/CS-mechanics
+  composition. Its first milestone is the main map import and runtime pipeline.
 - Future ports: reserve a distinct `mashup-<game>` binary with the coordinator.
 
 Worktrees isolate source files, but they may share Cargo's target directory.
@@ -42,7 +47,26 @@ coordinator. Do not clean another agent's build artifacts, replace its running
 executable, or stop its processes without coordinating first. Runtime captures,
 traces, and other generated outputs should also have game-specific destinations.
 
-Notify the coordinator before changing shared interfaces or files another agent
-owns. Agree on the boundary, then implement independently. Report pushed commits,
-interface changes, blockers, and any handoff of ownership. Fetch and rebase before
-pushing to main, and stage only your own changes.
+Coordinate material shared-interface changes and overlapping edits with the
+affected agents and coordinator. Send a brief proposal or implementation note and
+continue independent work; routine implementation does not require coordinator
+approval. Report pushed milestones, interface changes, blockers, and ownership
+handoffs. Do not report every build, process launch, or small edit. Fetch and
+rebase before pushing to main, and stage only your own changes.
+
+The coordinator is the product owner of the central specifications for maps,
+items/pickups, characters/controllers, weapons, vehicles, and future mashup
+features. Keep [docs/maps.md](docs/maps.md) and
+[docs/shared-specs.md](docs/shared-specs.md) current with implemented behavior,
+open decisions, and useful shared standards. These are living contracts; agents
+may improve them as real implementation needs emerge. Avoid redundant engines
+and premature abstractions, and support game-specific work rather than blocking
+it on a complete global specification.
+
+Game ports are long-running objectives. A completed checkpoint does not mean a
+port is complete. When a game chat becomes idle with work remaining, the
+coordinator should assign the next concrete milestone within the user's scope.
+Respect explicit pauses, cancellations, approval requests, and usage limits.
+Agents are authorized to message the coordinator and relevant peer game agents
+for this project coordination. Keep background coordination quiet while work is
+active or unchanged, and involve the user when a decision or blocker needs them.
