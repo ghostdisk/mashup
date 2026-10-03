@@ -5,13 +5,13 @@ use crate::{
     collision::{CollisionWorld, Hull},
     controller::first_person::{FirstPersonController, FirstPersonControllerPlugin},
     game::{
-        cstrike::game::ak47::{self, Ak47},
+        cstrike::game::weapons::{CsGun, CsPunch, WeaponKind},
         hl::game::{
             bsp_collision::BspCollision,
             movement::{self, MovementConfig, MovementState, SOURCE_UNIT},
         },
     },
-    weapon::{WeaponEvent, WeaponState},
+    weapon::{InventoryWeapon, WeaponEvent, WeaponInventory, WeaponState},
 };
 use bevy::{
     app::AppExit,
@@ -119,7 +119,9 @@ impl FpsMap {
 struct Session {
     spawn: Vec3,
     yaw: f32,
-    weapon: Handle<Gltf>,
+    weapons: Vec<WeaponPresentation>,
+    active_weapon: usize,
+    model_generation: u64,
     camera: Entity,
     presentation_serial: u64,
     clip: String,
@@ -129,6 +131,27 @@ struct Session {
     screenshot: bool,
     telemetry: Vec<serde_json::Value>,
 }
+struct WeaponPresentation {
+    kind: WeaponKind,
+    asset: Handle<Gltf>,
+    durations: HashMap<String, f32>,
+}
+impl Session {
+    fn play(&mut self, clip: String, fallback_seconds: f32) {
+        self.clip_remaining = self.weapons[self.active_weapon].durations.get(&clip)
+            .copied().unwrap_or(fallback_seconds);
+        self.clip = clip;
+        self.presentation_serial += 1;
+    }
+    fn equip(&mut self, gun: &CsGun) {
+        self.active_weapon = self.weapons.iter().position(|item| item.kind == gun.kind)
+            .expect("inventory and presentation are created together");
+        self.model_generation += 1;
+        self.play(gun.clip("draw"), 1.0);
+    }
+}
+#[derive(Component)]
+struct ViewModelRoot { generation: u64 }
 #[derive(Component)]
 struct FpsCamera;
 #[derive(Component)]
@@ -144,6 +167,7 @@ struct PendingViewModel {
 struct ViewClips {
     clips: HashMap<String, AnimationNodeIndex>,
     last_serial: u64,
+    generation: u64,
 }
 #[derive(Component)]
 struct PracticeTarget {
@@ -209,6 +233,15 @@ fn setup(
     if options.half_life {
         config.max_speed = 320.0 * SOURCE_UNIT;
     }
+    let mut entries = Vec::new();
+    let mut weapons = Vec::new();
+    for kind in [WeaponKind::Ak47, WeaponKind::M4a1, WeaponKind::Deagle] {
+        let path = if kind == WeaponKind::Ak47 { &options.view_model } else { kind.model() };
+        if !options.asset_root.join(path).is_file() { continue; }
+        entries.push(InventoryWeapon::new(kind.slot(), kind.timing(), kind.reserve(), CsGun::new(kind)));
+        weapons.push(WeaponPresentation { kind, asset: server.load(path.to_owned()), durations: HashMap::new() });
+    }
+    let inventory = WeaponInventory::new(entries).expect("validated starting weapon");
     let body = commands
         .spawn((
             Name::new("FPS body"),
@@ -216,8 +249,8 @@ fn setup(
             PlayerCommand { yaw, ..default() },
             MovementState::new(spawn),
             config,
-            WeaponState::new(&ak47::CONFIG, 90),
-            Ak47::deployed(),
+            inventory,
+            CsPunch::default(),
             Transform::from_translation(spawn),
         ))
         .id();
@@ -305,7 +338,9 @@ fn setup(
     commands.insert_resource(Session {
         spawn,
         yaw,
-        weapon: server.load(options.view_model.clone()),
+        weapons,
+        active_weapon: 0,
+        model_generation: 1,
         camera,
         presentation_serial: 1,
         clip: "draw".into(),
@@ -322,18 +357,30 @@ fn load_weapon(
     mut commands: Commands,
     server: Res<AssetServer>,
     gltfs: Res<Assets<Gltf>>,
+    animation_clips: Res<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
-    session: Res<Session>,
-    pending: Query<(), With<PendingViewModel>>,
-    clips: Query<(), With<ViewClips>>,
+    mut session: ResMut<Session>,
+    roots: Query<(Entity, &ViewModelRoot)>,
 ) {
-    if !pending.is_empty()
-        || !clips.is_empty()
-        || !server.is_loaded_with_dependencies(&session.weapon)
-    {
-        return;
+    for presentation in &mut session.weapons {
+        if !presentation.durations.is_empty() { continue; }
+        if let Some(gltf) = gltfs.get(&presentation.asset) {
+            for (name, handle) in &gltf.named_animations {
+                if let Some(clip) = animation_clips.get(handle) {
+                    presentation.durations.insert(name.to_string(), clip.duration());
+                }
+            }
+        }
     }
-    let Some(gltf) = gltfs.get(&session.weapon) else {
+    let mut current_exists = false;
+    for (entity, root) in &roots {
+        if root.generation == session.model_generation { current_exists = true; }
+        else { commands.entity(entity).despawn(); }
+    }
+    if current_exists { return; }
+    let asset = &session.weapons[session.active_weapon].asset;
+    if !server.is_loaded_with_dependencies(asset) { return; }
+    let Some(gltf) = gltfs.get(asset) else {
         return;
     };
     let Some(scene) = gltf
@@ -357,7 +404,8 @@ fn load_weapon(
     let clips = names.into_iter().zip(nodes).collect();
     commands
         .spawn((
-            Name::new("AK47 viewmodel"),
+            Name::new("Equipped weapon viewmodel"),
+            ViewModelRoot { generation: session.model_generation },
             WorldAssetRoot(scene),
             PendingViewModel {
                 graph: graphs.add(graph),
@@ -372,9 +420,16 @@ fn attach_view_model(
     ready: On<WorldInstanceReady>,
     mut commands: Commands,
     children: Query<&Children>,
+    roots: Query<&ViewModelRoot>,
+    session: Res<Session>,
     mut pending: Query<&mut PendingViewModel>,
     players: Query<(), With<AnimationPlayer>>,
 ) {
+    let Ok(root) = roots.get(ready.entity) else { return; };
+    if root.generation != session.model_generation {
+        commands.entity(ready.entity).despawn();
+        return;
+    }
     let Ok(mut model) = pending.get_mut(ready.entity) else {
         return;
     };
@@ -388,6 +443,7 @@ fn attach_view_model(
                 ViewClips {
                     clips: std::mem::take(&mut model.clips),
                     last_serial: 0,
+                    generation: root.generation,
                 },
             ));
         }
@@ -402,13 +458,14 @@ fn simulate(
     mut session: ResMut<Session>,
     mut bodies: Query<(
         &mut PlayerCommand,
-        &MovementConfig,
+        &mut MovementConfig,
         &mut MovementState,
         &mut Transform,
+        &mut WeaponInventory<CsGun>,
     )>,
 ) {
     session.ticks += 1;
-    for (mut input, config, mut body, mut transform) in &mut bodies {
+    for (mut input, mut config, mut body, mut transform, mut inventory) in &mut bodies {
         if options.smoke_test {
             *input = PlayerCommand {
                 yaw: session.yaw,
@@ -427,10 +484,17 @@ fn simulate(
             input.reload = tick == 720;
             input.crouch = (1050..1120).contains(&tick);
         }
+        if let Some(selection) = input.weapon_selection.take()
+            && inventory.select(selection) {
+            let equipped = inventory.active_mut();
+            equipped.profile.deploy();
+            session.equip(&equipped.profile);
+        }
+        if !options.half_life { config.max_speed = inventory.active().profile.kind.max_speed(); }
         movement::step(
             &mut body,
             &input,
-            config,
+            &config,
             &world.collision,
             time.delta_secs(),
         );
@@ -469,23 +533,37 @@ fn shoot(
     time: Res<Time<Fixed>>,
     world: Res<FpsMap>,
     mut session: ResMut<Session>,
-    mut bodies: Query<(&PlayerCommand, &MovementState, &mut WeaponState, &mut Ak47)>,
+    mut bodies: Query<(&PlayerCommand, &MovementState, &mut WeaponInventory<CsGun>, &mut CsPunch)>,
     mut targets: Query<(Entity, &mut PracticeTarget)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     session.clip_remaining = (session.clip_remaining - time.delta_secs()).max(0.0);
     session.hit_remaining = (session.hit_remaining - time.delta_secs()).max(0.0);
-    for (input, body, mut weapon, mut ak) in &mut bodies {
-        ak.recover(time.delta_secs(), input.fire);
-        for event in weapon.tick(&ak47::CONFIG, input.fire, input.reload, time.delta_secs()) {
+    for (input, body, mut inventory, mut punch) in &mut bodies {
+        punch.recover(time.delta_secs());
+        let equipped = inventory.active_mut();
+        let weapon = &mut equipped.state;
+        let gun = &mut equipped.profile;
+        gun.recover(time.delta_secs(), input.fire);
+        // Secondary action has priority over primary fire, and its lockout uses
+        // the same simulation timer as reload/deploy.
+        let secondary = input.secondary_fire && gun.kind == WeaponKind::M4a1;
+        let events = weapon.tick(&equipped.config, input.fire && !secondary, input.reload && !secondary, time.delta_secs());
+        if secondary && weapon.cooldown <= 0.0 && weapon.reload_remaining.is_none() {
+            gun.silenced = !gun.silenced;
+            weapon.cooldown = 2.0;
+            session.play(if gun.silenced { "add_silencer" } else { "detach_silencer" }.into(), 2.0);
+        }
+        for event in events {
             match event {
                 WeaponEvent::Shot => {
-                    let spread = ak.spread(body.grounded, body.velocity.with_y(0.0).length());
+                    let speed = body.velocity.with_y(0.0).length();
+                    let spread = gun.prepare_shot(body.grounded, body.crouched, speed);
                     let rotation = Quat::from_euler(
                         EulerRot::YXZ,
-                        input.yaw - ak.punch.y.to_radians(),
-                        input.pitch + ak.punch.x.to_radians(),
+                        input.yaw + punch.degrees.y.to_radians(),
+                        input.pitch + punch.degrees.x.to_radians(),
                         0.0,
                     );
                     // Independent deterministic spread sampler; source RNG matching is future validation.
@@ -497,7 +575,7 @@ fn shoot(
                     let start = body.position + Vec3::Y * body.eye_height();
                     let trace = world.collision.trace(
                         start,
-                        start + direction * 8192.0 * SOURCE_UNIT,
+                        start + direction * gun.range(),
                         Hull::Point,
                     );
                     let mut nearest = (trace.end - start).length();
@@ -514,7 +592,7 @@ fn shoot(
                     if let Some(entity) = hit
                         && let Ok((_, mut target)) = targets.get_mut(entity)
                     {
-                        target.health -= 36.0 * 0.98_f32.powf(nearest / (500.0 * SOURCE_UNIT));
+                        target.health -= gun.damage() * gun.range_modifier().powf(nearest / (500.0 * SOURCE_UNIT));
                         session.hit_remaining = 0.15;
                         if target.health <= 0.0 {
                             commands.entity(entity).despawn();
@@ -533,21 +611,17 @@ fn shoot(
                             Transform::from_translation(point - direction * 0.005),
                         ));
                     }
-                    ak.fired(
+                    gun.apply_recoil(
+                        &mut punch,
                         body.grounded,
                         body.crouched,
                         body.velocity.with_y(0.0).length() > 0.0,
                     );
-                    session.clip = format!("shoot{}", 1 + (weapon.serial - 1) % 3);
-                    session.clip_remaining = 0.8;
-                    session.presentation_serial += 1;
+                    session.play(gun.shot_clip(weapon.serial, weapon.magazine == 0), 0.8);
                 }
                 WeaponEvent::ReloadStarted => {
-                    session.clip = "reload".into();
-                    session.clip_remaining = ak47::CONFIG.reload_seconds;
-                    session.presentation_serial += 1;
-                    ak.shots = 0;
-                    ak.accuracy = 0.2;
+                    session.play(gun.clip("reload"), equipped.config.reload_seconds);
+                    gun.reloading();
                 }
                 WeaponEvent::Ready => {
                     // Attack readiness does not truncate the 1-second draw clip.
@@ -555,22 +629,23 @@ fn shoot(
                 _ => {}
             }
         }
-        if session.clip_remaining == 0.0 && session.clip != "idle1" {
-            session.clip = "idle1".into();
-            session.presentation_serial += 1;
+        let idle = gun.idle_clip();
+        if session.clip_remaining == 0.0 && session.clip != idle {
+            session.play(idle, 0.0);
         }
     }
 }
 
 fn present(session: Res<Session>, mut players: Query<(&mut ViewClips, &mut AnimationPlayer)>) {
     for (mut clips, mut player) in &mut players {
+        if clips.generation != session.model_generation { continue; }
         if clips.last_serial == session.presentation_serial {
             continue;
         }
         if let Some(&node) = clips.clips.get(&session.clip) {
             player.stop_all();
             let active = player.start(node);
-            if session.clip == "idle1" {
+            if session.clip.starts_with("idle") {
                 active.repeat();
             }
             clips.last_serial = session.presentation_serial;
@@ -580,33 +655,37 @@ fn present(session: Res<Session>, mut players: Query<(&mut ViewClips, &mut Anima
 
 type FpsCameraFilter = Or<(With<FpsCamera>, With<ViewCamera>)>;
 fn update_camera(
-    bodies: Query<(&PlayerCommand, &MovementState, &Ak47)>,
+    bodies: Query<(&PlayerCommand, &MovementState, &CsPunch)>,
     mut cameras: Query<&mut Transform, FpsCameraFilter>,
 ) {
-    let Ok((input, body, ak)) = bodies.single() else {
+    let Ok((input, body, punch)) = bodies.single() else {
         return;
     };
     for mut camera in &mut cameras {
         camera.translation = body.position + Vec3::Y * body.eye_height();
         camera.rotation = Quat::from_euler(
             EulerRot::YXZ,
-            input.yaw - ak.punch.y.to_radians(),
-            input.pitch + ak.punch.x.to_radians(),
+            input.yaw + punch.degrees.y.to_radians(),
+            input.pitch + punch.degrees.x.to_radians(),
             0.0,
         );
     }
 }
 fn update_hud(
     session: Res<Session>,
-    bodies: Query<(&MovementState, &WeaponState)>,
+    bodies: Query<(&MovementState, &WeaponInventory<CsGun>)>,
     mut hud: Query<&mut Text, With<Hud>>,
 ) {
-    let Ok((body, weapon)) = bodies.single() else {
+    let Ok((body, inventory)) = bodies.single() else {
         return;
     };
+    let equipped = inventory.active();
+    let weapon = &equipped.state;
     for mut text in &mut hud {
         text.0 = format!(
-            "MASHUP · CS mechanics lab\nAK-47   {} / {}   {}\nSpeed {:.1} u/s  ·  {}  ·  {}  ·  100 Hz\nWASD  ·  mouse look  ·  Space / wheel jump  ·  Ctrl crouch  ·  Shift walk\nLMB fire  ·  R reload  ·  F5 respawn  ·  F12 screenshot  ·  Esc release mouse  ·  F10 quit{}",
+            "MASHUP · CS mechanics lab\n{}{}   {} / {}   {}\nSpeed {:.1} u/s  ·  {}  ·  {}  ·  100 Hz\nWASD / mouse  ·  Space / wheel jump  ·  Ctrl crouch  ·  Shift walk\nLMB fire  ·  RMB silencer  ·  R reload  ·  1 / 2 slots  ·  Q last  ·  [ / ] cycle\nF5 respawn  ·  F12 screenshot  ·  Esc release mouse  ·  F10 quit{}",
+            equipped.profile.kind.name(),
+            if equipped.profile.silenced { " (silenced)" } else { "" },
             weapon.magazine,
             weapon.reserve,
             if weapon.reload_remaining.is_some() {
@@ -631,23 +710,24 @@ fn shortcuts(
     keys: Res<ButtonInput<KeyCode>>,
     options: Res<FpsOptions>,
     mut session: ResMut<Session>,
-    mut bodies: Query<(&mut MovementState, &mut WeaponState, &mut Ak47)>,
+    mut bodies: Query<(&mut MovementState, &mut WeaponInventory<CsGun>, &mut CsPunch)>,
     mut controllers: Query<&mut FirstPersonController>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if keys.just_pressed(KeyCode::F5) {
-        for (mut body, mut weapon, mut ak) in &mut bodies {
+        for (mut body, mut inventory, mut punch) in &mut bodies {
             *body = MovementState::new(session.spawn);
-            *weapon = WeaponState::new(&ak47::CONFIG, 90);
-            *ak = Ak47::deployed();
+            for entry in inventory.entries_mut() {
+                entry.state = WeaponState::new(&entry.config, entry.profile.kind.reserve());
+                entry.profile = CsGun::new(entry.profile.kind);
+            }
+            *punch = CsPunch::default();
+            session.equip(&inventory.active().profile);
         }
         for mut controller in &mut controllers {
             controller.yaw = session.yaw;
             controller.pitch = 0.0;
         }
-        session.clip = "draw".into();
-        session.clip_remaining = 1.0;
-        session.presentation_serial += 1;
     }
     if keys.just_pressed(KeyCode::F12)
         || (options.smoke_test && session.ticks >= 1150 && !session.screenshot)

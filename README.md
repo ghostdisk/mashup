@@ -64,7 +64,10 @@ Screenshots and telemetry from the dedicated binary go under `user_data/cstrike/
 The general executable still supports `cargo run --locked -- --play`.
 
 The first-person lab has map collision, running, air strafing, timed jumps,
-crouching, AK-47 fire/reload animation, and a speed/ammo display. WASD/mouse move
+crouching, weapon fire/reload animation, and a speed/ammo display. Import
+`models/v_m4a1.mdl` and `models/v_deagle.mdl` to add M4A1 and Desert Eagle.
+1 cycles rifles, 2 selects the pistol, Q selects the last weapon, and brackets
+cycle the loadout. Right mouse attaches/detaches the M4A1 silencer. WASD/mouse move
 and look; Space/wheel jumps; Ctrl ducks; left mouse fires; R reloads.
 F12 saves a native game screenshot; Escape releases the mouse; F10 exits.
 `--movement hl` selects Half-Life movement with the same assets.

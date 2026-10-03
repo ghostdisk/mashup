@@ -1,6 +1,6 @@
 # CS 1.6 mechanics lab
 
-This is an original implementation milestone, with a playable local map and AK-47.
+This is an original implementation milestone, with a playable local map and CS weapons.
 Exact equivalence to CS 1.6 is still a validation target, not a claim about this build.
 
 ## Run
@@ -9,6 +9,7 @@ Explicitly import your installed game's map and viewmodel:
 
 ```powershell
 cargo run --locked --bin mashup-import -- cstrike --source "C:\Program Files (x86)\Steam\steamapps\common\Half-Life\cstrike" --map maps/de_dust2.bsp --model models/v_ak47.mdl
+cargo run --locked --bin mashup-import -- cstrike --source "C:\Program Files (x86)\Steam\steamapps\common\Half-Life\cstrike" --model models/v_m4a1.mdl --model models/v_deagle.mdl
 cargo run --locked --bin mashup-cstrike
 ```
 
@@ -20,6 +21,9 @@ modes in either executable.
 
 WASD moves, mouse looks, Space or the wheel jumps, Ctrl ducks, Shift walks,
 left mouse fires, and R reloads. Escape releases the mouse; click to resume.
+1 cycles imported rifles, 2 selects Desert Eagle, Q selects the last weapon,
+and brackets cycle all weapons. Right mouse toggles the M4A1 silencer. Additional
+weapons are optional: the original AK-only import still runs.
 F5 resets the player and gun, F12 saves a screenshot, and F10 exits.
 The dedicated binary writes screenshots and movement telemetry under ignored
 `user_data/cstrike/`; the shared `mashup --play` composition uses `user_data/mashup/`.
@@ -48,7 +52,9 @@ exiting. This is a runtime smoke check, not a source-game equivalence test.
 - `MovementConfig` / `MovementState`: configurable GoldSrc movement. The same
   solver supports Half-Life and CS profiles, in meters and seconds.
 - `WeaponConfig` / `WeaponState`: generic magazine, deploy, cycle and reload timing.
-- `Ak47`: accuracy and recoil profile, independent of the imported model.
+- `WeaponInventory<T>`: per-weapon ownership, selection and equip transitions.
+- `CsGun` / `CsPunch`: CS accuracy/recoil profiles and player punch, independent
+  of imported models. See [the weapon contract](weapons.md) for timing/evidence.
 - `FirstPersonGamePlugin`: chooses the assets, cameras, targets, HUD and adapters.
 
 Bodies use hull-center origins. Original BSP plane/node trees are converted into

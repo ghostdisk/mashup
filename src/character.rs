@@ -28,4 +28,7 @@ pub struct PlayerCommand {
     pub walk: bool,
     pub fire: bool,
     pub reload: bool,
+    pub secondary_fire: bool,
+    /// One simulation-tick equip request, consumed by the composition.
+    pub weapon_selection: Option<crate::weapon::WeaponSelection>,
 }
