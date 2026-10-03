@@ -9,13 +9,20 @@ Explicitly import your installed game's map and viewmodel:
 
 ```powershell
 cargo run --locked --bin mashup-import -- cstrike --source "C:\Program Files (x86)\Steam\steamapps\common\Half-Life\cstrike" --map maps/de_dust2.bsp --model models/v_ak47.mdl
-cargo run --locked -- --play
+cargo run --locked --bin mashup-cstrike
 ```
+
+`mashup-cstrike` defaults to the FPS mode and has its own dev executable artifact.
+It reuses `glue::desktop` startup and the same mechanics as `mashup --play`.
+Build only `--bin mashup-cstrike` when working on CS; other agents can keep the
+general `mashup` executable running. Explicit `--view` or `--sandbox` selects those
+modes in either executable.
 
 WASD moves, mouse looks, Space or the wheel jumps, Ctrl ducks, Shift walks,
 left mouse fires, and R reloads. Escape releases the mouse; click to resume.
 F5 resets the player and gun, F12 saves a screenshot, and F10 exits.
-Screenshots and movement telemetry live under ignored `user_data/`.
+The dedicated binary writes screenshots and movement telemetry under ignored
+`user_data/cstrike/`; the shared `mashup --play` composition uses `user_data/mashup/`.
 
 `--map <GLB>` and `--weapon <GLB>` select separately imported content.
 `--movement hl` switches to the Half-Life profile without changing either asset.

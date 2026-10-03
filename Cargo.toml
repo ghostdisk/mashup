@@ -14,6 +14,10 @@ default = []
 vr = ["dep:bevy_mod_openxr", "dep:bevy_mod_xr", "dep:openxr"]
 
 [[bin]]
+name = "mashup-cstrike"
+path = "src/bin/mashup-cstrike.rs"
+
+[[bin]]
 name = "mashup-vr"
 path = "src/bin/mashup-vr.rs"
 required-features = ["vr"]

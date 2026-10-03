@@ -49,8 +49,15 @@ builds so the renderer runs smoothly. `Cargo.lock` is committed for reproducibil
 Import your installed `maps/de_dust2.bsp` and `models/v_ak47.mdl`, then run:
 
 ```sh
-cargo run --locked -- --play
+cargo run --locked --bin mashup-cstrike
 ```
+
+This dedicated dev executable opens directly into the FPS mode. Its output is
+`target/debug/mashup-cstrike.exe` on Windows, so CS development does not replace
+the general `mashup.exe` while another agent or player is using it. Both binaries
+reuse the shared desktop startup, controllers, collision and game mechanics.
+Screenshots and telemetry from the dedicated binary go under `user_data/cstrike/`.
+The general executable still supports `cargo run --locked -- --play`.
 
 The first-person lab has map collision, running, air strafing, timed jumps,
 crouching, AK-47 fire/reload animation, and a speed/ammo display. WASD/mouse move
@@ -81,25 +88,27 @@ current limitations. All commands use dev builds.
 
 ```text
 src/
-  main.rs                    Application entry point
+  main.rs                    General desktop entry point
   lib.rs                     Shared plugin and system ordering
   character.rs               Body marker and movement intent; no input/camera rules
   controller/keyboard.rs     Independent controller targeting a body entity
   animation/                 Shared animation catalog and playback requests
   importers/goldsrc/         MDL v10, BSP v30, WAD3 readers and GLB exporters
   bin/mashup-import.rs        Explicit offline import CLI
+  bin/mashup-cstrike.rs       Dedicated first-person CS composition
   bin/mashup-vr.rs            Concrete optional VR mashup binary
   vr/                        Tracking poses, OpenXR adapter, avatar IK and pose copy
   glue/vr_room.rs             VR character pose-checking composition
   glue/sandbox.rs            Demo scene; selects controller and movement behavior
   glue/asset_viewer.rs       Local model/animation inspector and map fly-through
+  glue/desktop.rs            Shared desktop startup and mode selection
   game/
     hl/
       importers/             Half-Life converter entry points
-      game/                  Independently written mechanics (placeholder)
+      game/                  Shared GoldSrc movement and BSP collision
     cstrike/
       importers/             Counter-Strike 1.6 converter entry points
-      game/                  Independently written mechanics (placeholder)
+      game/                  CS weapon behavior profiles
     gtasa/
       importers/             Local asset conversion (placeholder)
       game/                  Independently written mechanics (placeholder)
@@ -122,7 +131,7 @@ leftover intent. The sandbox's movement implementation belongs to its compositio
 Importers translate formats and record provenance; they do not select gameplay.
 Game modules implement mechanics without requiring that game's models. Glue code
 chooses combinations: an FPS character or weapon can be used with third-person
-rules, and vice versa. A future Half-Life movement implementation would live at
+rules, and vice versa. The shared GoldSrc movement implementation lives at
 `src/game/hl/game/movement.rs`.
 
 ## Licensing and content boundaries

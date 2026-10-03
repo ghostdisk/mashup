@@ -26,6 +26,8 @@ use std::{collections::HashMap, fs, path::PathBuf};
 #[derive(Resource)]
 pub struct FpsOptions {
     pub asset_root: PathBuf,
+    /// Runtime output belongs to the executable's composition, separate from assets.
+    pub output_root: PathBuf,
     pub map: String,
     pub view_model: String,
     pub half_life: bool,
@@ -650,17 +652,18 @@ fn shortcuts(
     if keys.just_pressed(KeyCode::F12)
         || (options.smoke_test && session.ticks >= 1150 && !session.screenshot)
     {
-        fs::create_dir_all("user_data/screenshots").expect("screenshot directory");
-        let path = format!("user_data/screenshots/fps-{}.png", session.ticks);
+        let directory = options.output_root.join("screenshots");
+        fs::create_dir_all(&directory).expect("screenshot directory");
+        let path = directory.join(format!("fps-{}.png", session.ticks));
         commands
             .spawn(Screenshot::primary_window())
             .observe(save_to_disk(path));
         session.screenshot = true;
     }
     if keys.just_pressed(KeyCode::F10) || (options.smoke_test && session.ticks >= 1300) {
-        fs::create_dir_all("user_data").expect("telemetry directory");
+        fs::create_dir_all(&options.output_root).expect("telemetry directory");
         fs::write(
-            "user_data/movement-trace.json",
+            options.output_root.join("movement-trace.json"),
             serde_json::to_vec_pretty(&session.telemetry).unwrap(),
         )
         .expect("write telemetry");
