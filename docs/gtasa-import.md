@@ -94,6 +94,11 @@ with a source scale of 1.0, applied consistently to rendering, placement and
 collision. Source IPL quaternions are conjugated and transformed by this basis.
 Source coordinates, names, model IDs, draw distances, flags, placement identities,
 interior bits and LOD indices remain available in provenance and object records.
+Model source metadata now retains all legacy draw distances and optional timed
+object `time_hours` as `[start,end]`, confirmed through the executable IDE loader.
+The primary `draw_distance` remains the first source distance. Runtime still
+needs the source clock/visibility policy; preserving hours does not yet hide
+day/night variants.
 
 ## Prototype package and reusable boundary
 

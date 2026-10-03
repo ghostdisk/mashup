@@ -133,6 +133,22 @@ renderer still suppresses LOD models using its initial name heuristic.
 
 ## Evidence limits and implementation follow-through
 
+IDE model definitions were confirmed through `005d2a60`: `objs` dispatches to
+`005cdd30`, `tobj` to `005cde90`, and animated props to `005ce130`. The first two
+accept modern records or legacy records with one to three draw distances, but
+assign the first distance to model offset `0x18`. Timed objects additionally
+store the two hour bytes through their time-info virtual method. The importer
+now preserves the full distance list and optional `[start,end]` hours in source
+metadata. The installed data has 160 timed definitions, all in modern form;
+hour pairs commonly wrap midnight. Runtime selection still awaits the shared
+placed-entity visibility seam and source clock decisions.
+
+RTTI also identifies separate `CLodAtomicModelInfo`/`CLodTimeModelInfo` types,
+but type existence alone does not prove that main-world LOD placements use them.
+The ordinary `objs` parser selects model allocation based on flag `0x1000`,
+not a textual `lod` name check. This must be reconciled with the observed IPL
+relationships and renderer behavior before replacing the initial name heuristic.
+
 Initial water-loader research also located `00724d10` through the installed
 `DATA\\water.dat` string. MCP decompilation confirms four vertices with seven
 floats each and an optional integer for quad records, a three-vertex fallback,

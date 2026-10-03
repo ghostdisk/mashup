@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]
-pub struct Definition { pub id: i32, pub name: String, pub txd: String, pub draw_distance: f32, pub flags: u32, pub animation: Option<String> }
+pub struct Definition { pub id: i32, pub name: String, pub txd: String, pub draw_distance: f32, pub draw_distances:Vec<f32>,pub flags: u32, pub animation: Option<String>,pub time_hours:Option<[u8;2]> }
 pub struct Instance { pub model: i32, pub position: Vec3, pub rotation: Quat, pub interior: i32, pub lod: i32, pub source: String, pub index: usize }
 impl Instance {pub fn identity(&self)->String {format!("gtasa:{}:{}",self.source,self.index)}}
 
@@ -41,12 +41,23 @@ pub fn ide(text: &str, models: &mut BTreeMap<i32, Definition>, parents: &mut BTr
         if section == "txdp" && fields.len()>=2 { parents.insert(fields[0].into(),fields[1].into()); }
         if (section=="objs" || section=="tobj" || section=="anim") && fields.len()>=5 {
             let id=fields[0].parse().map_err(|_| format!("invalid IDE {line}"))?;
-            // Animated exterior props have an animation-dictionary field before
-            // distance. The legacy default.ide also uses a single-mesh count.
-            let distance_index=if section=="anim" || (section=="objs" && fields.len()==6 && fields[3]=="1") {4}else{3};
-            let draw_distance=fields.get(distance_index).ok_or("missing IDE distance")?.parse().map_err(|_| format!("invalid IDE distance {line}"))?;
-            let flags=fields.get(distance_index+1).ok_or("missing IDE flags")?.parse().map_err(|_| format!("invalid IDE flags {line}"))?;
-            models.insert(id,Definition{id,name:fields[1].into(),txd:fields[2].into(),draw_distance,flags,animation:if section=="anim" {Some(fields[3].into())}else{None}});
+            // 005cdd30/005cde90 support modern and legacy 1..3-distance forms.
+            // Animated exterior props place their dictionary before distance.
+            let modern_count=if section=="tobj"{7}else{5};
+            let (distance_index,distance_count)=if section=="anim"{(4,1)}else if fields.len()==modern_count{(3,1)}else{
+                let count=fields[3].parse::<usize>().map_err(|_|format!("invalid legacy IDE count {line}"))?;
+                if !(1..=3).contains(&count)||fields.len()!=modern_count+count{return Err(format!("unsupported IDE definition {line}"));}
+                (4,count)
+            };
+            let mut draw_distances=Vec::new();
+            for index in distance_index..distance_index+distance_count {
+                let distance=fields.get(index).ok_or("missing IDE distance")?.parse::<f32>().map_err(|_|format!("invalid IDE distance {line}"))?;
+                if !distance.is_finite()||distance<0.0{return Err(format!("invalid IDE distance {line}"));}draw_distances.push(distance);
+            }
+            let flags_index=distance_index+distance_count;
+            let flags=fields.get(flags_index).ok_or("missing IDE flags")?.parse().map_err(|_| format!("invalid IDE flags {line}"))?;
+            let time_hours=if section=="tobj"{let hour=|index|fields.get(index).ok_or("missing IDE time hour")?.parse::<u8>().map_err(|_|format!("invalid IDE time hour {line}"));Some([hour(flags_index+1)?,hour(flags_index+2)?])}else{None};
+            models.insert(id,Definition{id,name:fields[1].into(),txd:fields[2].into(),draw_distance:draw_distances[0],draw_distances,flags,animation:if section=="anim" {Some(fields[3].into())}else{None},time_hours});
         }
     }
     Ok(())
