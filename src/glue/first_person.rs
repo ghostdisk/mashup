@@ -549,7 +549,10 @@ fn shoot(
         // Secondary action has priority over primary fire, and its lockout uses
         // the same simulation timer as reload/deploy.
         let secondary = input.secondary_fire && gun.kind == WeaponKind::M4a1;
-        let events = weapon.tick(&equipped.config, input.fire && !secondary, input.reload && !secondary, time.delta_secs());
+        // CS prioritizes attacks over reload and reloads an empty magazine once
+        // the trigger is released. Reserve/readiness checks stay in shared timing.
+        let reload = !input.fire && !secondary && (input.reload || weapon.magazine == 0);
+        let events = weapon.tick(&equipped.config, input.fire && !secondary, reload, time.delta_secs());
         if secondary && weapon.cooldown <= 0.0 && weapon.reload_remaining.is_none() {
             gun.silenced = !gun.silenced;
             weapon.cooldown = 2.0;

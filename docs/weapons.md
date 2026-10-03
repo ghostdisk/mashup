@@ -51,6 +51,8 @@ rifles. It does not implement CS purchase, team, shield or primary-slot limits.
 | Desert Eagle | 7 | 0.225 s | 2.2 s | 0.75 s | 250 source units/s |
 
 Weapon selection updates the movement maximum before movement runs that tick.
+Attacks have priority over reload. An empty magazine requests reload after
+releasing the trigger; shared timing checks readiness and available reserve.
 Half-Life movement keeps its independent 320-unit maximum. M4A1 secondary fire
 toggles its silencer with a two-second attack lockout and the imported attach/
 detach sequence. Unsilenced/silenced damage is 32/33 with range factors .97/.95;
@@ -85,15 +87,33 @@ skeletal sequence names/durations come from each installed MDL import catalog.
 | Desert Eagle stance spread/cycle | `CDEAGLE::PrimaryAttack`, `0011baa0` |
 | Desert Eagle reload/deploy | `CDEAGLE::Reload`, `0011b3e0`; `Deploy`, `0011b450` |
 | Rifle recoil increments and direction-flip probability | `CBasePlayerWeapon::KickBack`, `00105b00` |
+| Attack priority and empty-magazine reload after trigger release | `CBasePlayerWeapon::ItemPostFrame`, `00104d70` |
 
 Rifle accuracy uses integer division of shot-count cubed. Recoil uses the base
 increment on shot one and the full shot count for subsequent increments; lateral
 punch follows source yaw sign after coordinate conversion. Direction-flip
 probabilities are observed, but the generator sequence is still approximate.
 
+The Windows `mp.dll` export `weapon_m4a1` at `1000b480` identifies its vtable
+at `100d1418`. Independently inspected routines match the M4 profile: primary
+attack at `1000b100`, fire at `1000ab70`, reload at `1000b280`, deploy at
+`1000aa60`, and secondary attack at `1000b2f0`. They confirm the cycle/spread,
+integer cubic accuracy, recoil coefficients, 32/33 damage and .97/.95 range
+factors, reload timing/sequences, and two-second silencer lockout. Common deploy
+at `100be720` assigns the .75-second player attack lockout. This corroborates
+these behavior constants across the installed binaries; it is not a measured
+prediction/collision/RNG equivalence result.
+
+Windows Desert Eagle primary/fire/reload at `10004270`, `10003d50` and
+`10004350` confirm 54 damage, .81 range factor, 4096-unit range, two degrees
+of pitch kick, .225-second cycle and 2.2-second reload. Windows primary attack
+selects stance spread from the preceding accuracy value, including airborne
+shots, before fire updates accuracy. The profile follows that explicit Windows
+call ordering; the Linux airborne inline decompilation needs further validation.
+
 Exact Windows/runtime equivalence remains to be measured. Bullet sampling,
 animation-variant selection and recoil RNG are approximate. Penetration, armor,
-hitgroups, underwater attack restrictions, automatic empty-magazine reload,
+hitgroups, underwater attack restrictions,
 source idle scheduling, audio/animation events and viewmodel bob are unfinished.
 No source binary, decompiler output or imported game content is distributed.
 

@@ -156,7 +156,7 @@ impl CsGun {
                 else { 0.13 },
         }
     }
-    /// Called before tracing; ground rifle spread uses the previous accuracy value.
+    /// Windows primary attacks select spread before updating accuracy in fire.
     pub fn prepare_shot(&mut self, grounded: bool, crouched: bool, speed: f32) -> f32 {
         let previous_spread = self.spread(grounded, crouched, speed);
         self.shots += 1;
@@ -172,11 +172,7 @@ impl CsGun {
             }
         };
         self.last_shot = Some(self.elapsed);
-        if self.kind == WeaponKind::Deagle && !grounded {
-            self.spread(grounded, crouched, speed)
-        } else {
-            previous_spread
-        }
+        previous_spread
     }
     pub fn apply_recoil(&mut self, punch: &mut CsPunch, grounded: bool, crouched: bool, moving: bool) {
         if self.kind == WeaponKind::Deagle {
