@@ -50,6 +50,14 @@ semantics and their limits are described in [weapons.md](weapons.md).
 | CS | Own Git worktree | `mashup-cstrike` | CS reimplementation; next milestone is additional weapons and weapon selection/switching |
 | GTASA | Own Git worktree | `mashup-gtasa` | Clean San Andreas reimplementation; first import the main map, then implement GTA features |
 
+Eight additional Luna 6.0 workers cover HTML UI, Lineage 2, global assets/games,
+vehicles, NPC AI, traffic, VR controls and GTA model extraction. See
+[workstreams.md](workstreams.md) for concrete ownership and milestones. GTASA
+keeps the main map; GTA Assets owns car/pedestrian extraction. Coordinator's
+earlier vehicle implementation task is canceled in favor of the Vehicles worker.
+New distinct tasks may receive additional worker chats/worktrees as authorized
+by the user. The compilation cap and shared build gate remain in force.
+
 Only the coordinator uses the primary checkout. New game agents receive independent
 sidebar chats and their own worktrees/binaries. Each uses game-specific imported
 assets and runtime output destinations. Share libraries and interfaces, not

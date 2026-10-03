@@ -44,6 +44,14 @@ Current binary ownership:
 - `mashup-cstrike`: the `CS` agent's Counter-Strike port.
 - `mashup-gtasa`: the `GTASA` agent's clean San Andreas port. Its first milestone
   is the main map import and runtime pipeline, followed by GTA-specific features.
+- `mashup-ui`: HTML UI worker.
+- `mashup-lineage2`: clean Lineage 2 port worker.
+- `mashup-assets`: global asset/game registry worker, if a runnable inspector is needed.
+- `mashup-vehicles`: vehicle core and player-driving worker.
+- `mashup-npc`: NPC/AI/enemy worker.
+- `mashup-traffic`: traffic and autonomous road-user worker.
+- `mashup-vr-controls`: VR control integration worker.
+- `mashup-gtasa-assets`: GTA vehicle/pedestrian asset extraction worker.
 - Future ports: reserve a distinct `mashup-<game>` binary with the coordinator.
 
 Worktrees isolate source files, but they may share Cargo's target directory.
@@ -96,3 +104,18 @@ active or unchanged, and involve the user when a decision or blocker needs them.
 The user prefers roughly one coordination message per five minutes on average.
 Batch meaningful updates, avoid repetitive progress chatter and peer messages,
 and let active agents work without repeated check-ins.
+
+The current scale experiment has ten workers plus Coordinator. New worker chats
+default to `gpt-6-luna` (Luna 6.0), each in a worktree. Coordinator is authorized
+to create additional worker chats on demand for distinct new tasks and to delegate
+their work. Consult [docs/workstreams.md](docs/workstreams.md) for ownership before
+adding work. GTA is the primary integration world; GTASA retains map work while a
+separate GTA Assets worker extracts pedestrians and vehicles. Traffic owns AI road
+users; Vehicles owns shared vehicle state and player driving; NPC owns pedestrian
+and enemy behavior. Core systems and asset imports remain independent.
+
+Keep the machine usable: all builds go through the shared capped gate, even with
+many chats active. Do not launch/focus game windows or grab the mouse during
+background work. Use a private target, and avoid redundant full-world imports,
+large asset copies and uncontrolled background servers. Batch shared-file edits
+and dependency updates; fetch/rebase and stage only owned paths.
