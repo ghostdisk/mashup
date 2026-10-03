@@ -3,8 +3,9 @@
 param([Parameter(Mandatory=$true)][string]$CachePath)
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot))
-$expectedCache = [IO.Path]::GetFullPath((Join-Path $repositoryRoot 'user_data\build-cache'))
-if ([IO.Path]::GetFullPath($CachePath) -ne $expectedCache) { throw 'Unexpected shared cache destination.' }
+$allowedCaches = @('user_data\build-cache', 'user_data\build-cache-core') |
+    ForEach-Object { [IO.Path]::GetFullPath((Join-Path $repositoryRoot $_)) }
+if ([IO.Path]::GetFullPath($CachePath) -notin $allowedCaches) { throw 'Unexpected shared cache destination.' }
 New-Item -ItemType Directory -Force -Path $CachePath | Out-Null
 $seedStamp = Join-Path $CachePath 'mashup-seed.json'
 if (Test-Path -LiteralPath $seedStamp) { return }

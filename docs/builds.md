@@ -7,7 +7,8 @@ $env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
 & D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>
 ```
 
-The user now authorizes twelve Cargo compiler jobs at Normal priority. CPU
+The user authorizes twelve Cargo compiler jobs at Normal priority. The helper
+divides them across two independent lanes, with six jobs per invocation. CPU
 affinity uses physical core count minus two, including SMT siblings on the
 selected cores. The native helper queries Windows CPU topology rather than
 guessing from logical processor count. On the current Ryzen 7 5700G that means
@@ -15,14 +16,19 @@ six of eight physical cores / twelve of sixteen logical CPUs. Every compiler,
 linker and build script shares the same CPU budget. Rust can create additional
 threads, but they execute only on the allowed CPUs. Dev builds only.
 
-`Local\MashupSharedDependencyBuild` serializes Cargo invocations using the new
-shared cache; it is separate from the obsolete private-cache queue. Parallel work
-occurs within that invocation, avoiding competing cold builds and excessive
-duplicate compiler graphs. Application development remains parallel across chats.
+The previous single queue let an optional CEF feature graph delay every worker.
+The helper now allows one core and one HTML invocation concurrently, each with
+six jobs on the same CPU mask. `Local\MashupCoreBuild` protects the core lane;
+HTML retains `Local\MashupSharedDependencyBuild` and its existing compiled graph.
+Core tickets prioritize `mashup-demo`, then ordinary builds in arrival order,
+then optional-feature builds. Tickets include helper PID and process start time
+so stale requests can be discarded without terminating processes.
 
 ## Cache and executable isolation
 
-`CARGO_BUILD_BUILD_DIR` points at ignored `D:\Mashup\user_data\build-cache`.
+`CARGO_BUILD_BUILD_DIR` points at ignored `D:\Mashup\user_data\build-cache-core`
+for core builds and `D:\Mashup\user_data\build-cache` for HTML builds. The helper
+routes `mashup-ui` or `html-ui` requests to HTML; other binaries use core.
 Cargo keeps compatible dependency variants there: version, features, toolchain,
 profile and compiler settings still control freshness and reuse. Dependency
 optimization/profile flags are unchanged; no profile-triggered rebuild is needed
@@ -47,8 +53,9 @@ Renderer-specific dependencies should be opt-in rather than expanding every
 game's dependency graph. UI owns separating CEF behind an optional `html-ui`
 feature, with action/state types usable without the browser renderer. This
 separation is assigned work, not yet a published capability. The first native
-demo checkpoint must not wait for CEF integration. An active CEF build can still
-populate its legitimate shared feature variant; do not cancel it or alter profiles.
+demo checkpoint must not wait for CEF integration. Independent lane caches keep
+Cargo's build-directory lock from coupling these graphs. Each cache is seeded
+once from completed coordinator dependencies, never peer application artifacts.
 
 A worker sandbox may permit writes only inside its worktree, while the shared
 cache lives under the primary checkout. Use the narrow execution escalation for
@@ -66,7 +73,7 @@ or topology failure refuses to launch an uncapped compiler.
 
 `& D:\Mashup\tools\build.ps1 prepare` bootstraps the wrapper and seeds the cache
 without compiling a game. Its short bootstrap/cache gate is separate from the
-Cargo gate, so preparation can finish while an old Cargo build runs. The versioned
+lane gates, so preparation can finish while an old Cargo build runs. The versioned
 wrapper does not replace the old executable used by a running build.
 
 During this coordinated transition, leave active Cargo/rustc builds to finish

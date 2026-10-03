@@ -12,14 +12,17 @@ work on a shared core.
 - Don't spawn subagents unless you're a coordiantor agent.
 - Always work in dev build
 - Windows builds use `.cargo/config.toml` and `tools/capped-rustc.rs`: twelve Cargo
-  jobs, physical core count minus two (including those cores' SMT threads), Normal compiler/linker
+  jobs total across two lanes (six per invocation), physical core count minus two
+  (including those cores' SMT threads), Normal compiler/linker
   priority. Do not override the cap or restart an uncapped build. Keep the
   wrapper active in private worktree targets too. All builds share the same CPU
   mask; the jobs do not receive separate CPU budgets. On this 8-core/16-thread
   machine the budget is six physical cores / twelve logical CPUs. Agents build with
   `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` from their
-  worktree. Its shared mutex permits one build across agents, preventing several
-  independent cold dependency builds from running together. It bootstraps the ignored
+  worktree. Core and HTML builds use independent dependency caches and mutexes,
+  allowing one invocation per lane without an optional CEF graph blocking every
+  game. Core requests prioritize the demo checkpoint, then ordinary builds in
+  arrival order, then optional-feature builds. It bootstraps the ignored
   native wrapper executable under the same cap. The gate is automatic;
   routine builds do not need coordinator approval.
 
