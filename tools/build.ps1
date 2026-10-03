@@ -4,16 +4,16 @@ $ErrorActionPreference = 'Stop'
 if ($args.Count -eq 0 -or $args[0] -ne 'build') {
     throw 'Pass a Cargo build command, for example: build --locked --bin mashup-cstrike'
 }
-$env:CARGO_BUILD_JOBS = '1'
+$env:CARGO_BUILD_JOBS = '2'
 $wrapperPath = Join-Path $PSScriptRoot 'capped-rustc.exe'
 $wrapperSource = Join-Path $PSScriptRoot 'capped-rustc.rs'
 $buildHost = [Diagnostics.Process]::GetCurrentProcess()
-$buildHost.ProcessorAffinity = [IntPtr]63
+$buildHost.ProcessorAffinity = [IntPtr]255
 $buildHost.PriorityClass = 'BelowNormal'
 $buildGate = [Threading.Mutex]::new($false, 'Local\MashupRustBuild')
 $ownsBuildGate = $false
 try {
-    Write-Output 'Waiting for the shared build slot (six CPUs, one build, BelowNormal).'
+    Write-Output 'Waiting for the shared build slot (eight CPUs, two Cargo jobs, one build, BelowNormal).'
     try { $ownsBuildGate = $buildGate.WaitOne() }
     catch [Threading.AbandonedMutexException] { $ownsBuildGate = $true }
     # Bootstrap directly under this already capped process, before invoking Cargo.

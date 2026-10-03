@@ -1,4 +1,4 @@
 [build]
-jobs = 1
+jobs = 2
 # Resolve separately in each worktree; no shared executable or library cache.
 rustc-wrapper = "tools/capped-rustc.exe"

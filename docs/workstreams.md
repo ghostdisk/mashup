@@ -55,8 +55,8 @@ preserve peers' entries during rebase and avoid wholesale rewrites. Do not wait
 for a complete central specification to implement a useful feature.
 
 Use `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` for every
-build. It limits execution to six logical CPUs at BelowNormal priority, one Cargo
-job and one memory-heavy build across all agents. No formatters, linters or tests.
+build. It limits execution to eight shared logical CPUs at BelowNormal priority,
+two Cargo jobs and one build across all agents. No formatters, linters or tests.
 Source/research work runs in parallel while builds queue automatically. Do not
 foreground game windows, grab the mouse, clean shared artifacts or duplicate
 large full-world imports. Allocate heavy conversions deliberately and release
@@ -82,7 +82,7 @@ thread listings and update this register as needed.
 | Lineage 2 | `client-new-thread:266933e8-d2ab-4beb-9acf-db6c576cd155` | `01a102e1-8601-7db2-9732-73ec0fcc52cf` |
 | Assets and Games | `client-new-thread:62b799f1-a671-4e74-b221-9ef62970cb68` | `01a102e1-908b-78f2-966e-474eab25dd2c` |
 | Vehicles | `client-new-thread:a7c3089d-a7cd-4948-a954-d394dd01f2bf` | `01a102e1-a76c-7020-ad03-dbabad32d3fa` |
-| NPC AI | `client-new-thread:126ca79c-f6c7-4f09-b6e8-2cfe019473ed` | Pending app listing |
+| NPC AI | `client-new-thread:126ca79c-f6c7-4f09-b6e8-2cfe019473ed` | `01a102e1-b098-77a2-b591-4d3123a30664` |
 | Traffic | `client-new-thread:cad5b41b-60c0-4a12-acf8-b793a902f059` | `01a102e1-bdd2-76c2-b256-1022335e5ddc` |
 | VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | `01a102e1-c84f-7ea3-8245-775854233bce` |
-| GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | Pending app listing |
+| GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | `01a102e1-d6c4-7cc2-9497-a3031b3be758` |

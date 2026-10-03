@@ -25,7 +25,7 @@ fn limit_process() -> io::Result<()> {
         for bit in 0..usize::BITS {
             let cpu = 1_usize << bit;
             if available & cpu != 0 { mask |= cpu; }
-            if mask.count_ones() == 6 { break; }
+            if mask.count_ones() == 8 { break; }
         }
         if mask == 0 || SetProcessAffinityMask(handle, mask) == 0 {
             return Err(io::Error::last_os_error());
