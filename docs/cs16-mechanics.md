@@ -148,6 +148,14 @@ equivalence. Matched command-boundary capture remains necessary for that claim.
 
 ## Validation and remaining fidelity
 
+The shared solver's ramp-contact correction follows `PM_FlyMove` at `00133be0`
+and `PM_WalkMove` at `00134740` in the locally inspected CS binary: clip against
+the last unobstructed velocity, exclude the selected plane from the other-plane
+checks, and prefer the raised path on equal horizontal progress. An embedded
+edge probe no longer doubles ground friction merely because its backend reports
+fraction 1. Uphill traversal in Dust2 and the GTA/CS composition still needs a
+fresh in-game measurement after this correction.
+
 Synthetic tests exercise acceleration, normalized diagonal commands, held-jump
 latching, grounded/airborne crouch transitions from the first command, crouch feet
 preservation, component-wise velocity clipping, hull contact and magazine/reload cadence.

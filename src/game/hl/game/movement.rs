@@ -152,6 +152,7 @@ fn slide(
     let mut position = position;
     let mut velocity = velocity;
     let primal = velocity;
+    let mut incoming = velocity;
     let mut remaining = dt;
     let mut planes = Vec::with_capacity(5);
     for _ in 0..4 {
@@ -164,6 +165,7 @@ fn slide(
         }
         if trace.fraction > 0.0 {
             position = trace.end;
+            incoming = velocity;
             planes.clear();
         }
         if trace.fraction == 1.0 {
@@ -171,11 +173,13 @@ fn slide(
         }
         remaining *= 1.0 - trace.fraction;
         planes.push(trace.normal);
-        let incoming = velocity;
         let mut clipped = None;
-        for normal in &planes {
+        for (index, normal) in planes.iter().enumerate() {
             let candidate = clip_velocity(incoming, *normal, 1.0);
-            if planes.iter().all(|other| candidate.dot(*other) >= 0.0) {
+            // PM_FlyMove checks the other planes only. Roundoff against the
+            // plane we just clipped must not turn a ramp contact into a stop.
+            if planes.iter().enumerate().all(|(other_index, other)|
+                index == other_index || candidate.dot(*other) >= 0.0) {
                 clipped = Some(candidate);
                 break;
             }
@@ -291,7 +295,10 @@ pub fn step(
                 edge_start - Vec3::Y * 34.0 * SOURCE_UNIT,
                 Hull::Point,
             );
-            let edge_scale = if edge.fraction == 1.0 {
+            // An embedded point is support, not an edge. BSP traces that start
+            // and remain solid can report fraction 1; uphill probes can enter
+            // the ramp and must not double the walking friction.
+            let edge_scale = if edge.fraction == 1.0 && !edge.start_solid {
                 config.edge_friction
             } else {
                 1.0
@@ -339,7 +346,7 @@ pub fn step(
             if !down.start_solid
                 && down.fraction < 1.0
                 && down.normal.y >= 0.7
-                && step_distance > flat_distance
+                && step_distance >= flat_distance
             {
                 state.position = down.end;
                 state.velocity = raised_velocity.with_y(flat_velocity.y);
