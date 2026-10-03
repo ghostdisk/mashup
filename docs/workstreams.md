@@ -67,3 +67,22 @@ peer messages and per-build updates; the user prefers about one coordination
 message per five minutes. Coordinator may create another Luna worker/worktree
 when a distinct new task merits it, rather than overloading or micromanaging
 existing workers. Respect explicit pauses and pending user decisions.
+
+## Chat dispatch register
+
+CS: `01a10251-8a42-74a1-a9e7-de68adfa7f69`; GTASA: `01a10295-71a0-7752-ae21-3e4f5d5f7cce`.
+The eight new chats were dispatched in separate worktrees. Creation references
+below prevent duplicates while app setup resolves; client references must never
+be passed to APIs requiring a real thread ID. Resolve ready chats through app
+thread listings and update this register as needed.
+
+| Worker | Dispatch reference | Confirmed thread ID |
+| --- | --- | --- |
+| UI | `client-new-thread:2f92d5a1-64e1-4210-97e3-6a6c7fbff979` | Pending app listing |
+| Lineage 2 | `client-new-thread:266933e8-d2ab-4beb-9acf-db6c576cd155` | Pending app listing |
+| Assets and Games | `client-new-thread:62b799f1-a671-4e74-b221-9ef62970cb68` | `01a102e1-908b-78f2-966e-474eab25dd2c` |
+| Vehicles | `client-new-thread:a7c3089d-a7cd-4948-a954-d394dd01f2bf` | Pending app listing |
+| NPC AI | `client-new-thread:126ca79c-f6c7-4f09-b6e8-2cfe019473ed` | Pending app listing |
+| Traffic | `client-new-thread:cad5b41b-60c0-4a12-acf8-b793a902f059` | `01a102e1-bdd2-76c2-b256-1022335e5ddc` |
+| VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | Pending app listing |
+| GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | Pending app listing |
