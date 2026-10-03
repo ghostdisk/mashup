@@ -18,6 +18,10 @@ name = "mashup-cstrike"
 path = "src/bin/mashup-cstrike.rs"
 
 [[bin]]
+name = "mashup-gtasa"
+path = "src/bin/mashup-gtasa.rs"
+
+[[bin]]
 name = "mashup-vr"
 path = "src/bin/mashup-vr.rs"
 required-features = ["vr"]

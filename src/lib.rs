@@ -9,6 +9,7 @@ pub mod controller;
 pub mod game;
 pub mod glue;
 pub mod importers;
+pub mod maps;
 #[cfg(feature = "vr")]
 pub mod vr;
 pub mod weapon;

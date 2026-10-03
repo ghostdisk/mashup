@@ -21,11 +21,13 @@ Movement and hitscan already consume it independently of rendered geometry.
 The current first-person glue chooses `BspCollision` concretely, so composing a
 different map backend still needs an integration seam there.
 
-The GTASA namespace is currently a scaffold. The supplied local installation is
+The GTASA port now contributes an initial package/import/runtime prototype. The supplied local installation is
 `C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto San Andreas`.
-The GTASA agent's first milestone is importing and rendering the main map, with
-collision and large-world loading. Exact source primitive types, coordinate
-conversion, and archive/layout details must be established from that installation.
+The importer reads its VER2 IMG, IDE, text/binary IPL, static DFF, D3D9 TXD and
+COL source data. The world inspector streams spatial chunks and source collision.
+See [gtasa-import.md](gtasa-import.md) for operational coverage and fidelity gaps.
+Global format ownership remains with the coordinator; this is GTA-driven input
+to that implementation, not a completed cross-game schema or BSP migration.
 
 The first cross-game milestone is the San Andreas map with CS movement and
 shooting. This is coordinator-owned integration in a separate mashup composition;
@@ -122,10 +124,57 @@ world/asset integration and GTA mechanics. Coordinate overlapping shared edits
 so port work and global work proceed independently. Proposals and useful working
 prototypes do not wait for the entire format to be designed.
 
+## Implemented GTA-driven prototype v1
+
+The package root is `world.mashup.json`, tagged `format: mashup-world`, `version: 1`.
+It requires `static-mesh-v1`, `instances-v1`, `spatial-chunks-v1` and
+`collision-primitives-v1`. Readers reject unknown required capabilities/versions.
+The manifest contains identity, bounds, coordinate/provenance records, model
+definitions, spawn records and chunk descriptors. Payload paths are package-relative
+and checked against absolute paths/parent traversal. No implicit migration exists.
+
+Model definitions reference reusable `.mshmesh` geometry, material records with
+RGBA color/PNG texture references and separate collision JSON. Chunk records
+reference model IDs and contain stable instance identity, world translation,
+normalized XYZW rotation and namespaced source metadata. GTA chunks are assigned
+by instance origin to 256-meter X/Z cells; their actual bounds include full render
+and collision extents, so crossing geometry participates in neighboring queries.
+
+The mesh encoding is little-endian: ASCII `MSHM`, u32 version=1, u32 vertex count,
+u32 index count, u32 part count; then vertices of 12 f32 values (position XYZ,
+normal XYZ, UV, RGBA), u32 indices, and parts of three u32 values (first index,
+index count, material index). Parts describe triangle lists. The reader validates
+lengths, finite attributes and index/part ranges. Runtime instancing reuses mesh
+and material handles. This intentionally simple encoding can evolve under global
+format ownership; it is not claimed to support skinned models or BSP yet.
+
+Collision JSON uses `backend: primitives`, `version: 1`, local vertices,
+triangle records `[a,b,c,source_material,source_light]`, boxes with local min/max
+and retained source surface bytes, and spheres with local center/radius and
+surface bytes. Source COL2/3 compressed vertices are decoded at 1/128 source
+unit. Instance rotation is preserved for boxes. Source triangles remain independent
+of the rendering mesh; original BSP support and its legacy path remain intact.
+
+`MeshCollisionWorld` implements `CollisionWorld` with continuous separating-axis
+AABB/triangle and AABB/oriented-box sweeps, and piecewise exact sphere/body
+distance sweeps. Body dimensions currently match existing standing/crouching
+Hull semantics. A 16-meter grid accelerates primitive queries. Triangle surfaces
+do not imply closed solid volumes. Surface records are retained in the package,
+but shared `Trace` does not yet return surface identity.
+
+`MapRuntimePlugin` consumes `MapPackage`, `MapRuntime`, `StreamingFocus` and
+`MeshCollisionWorld`. It loads one intersecting chunk per streaming tick,
+unloads out-of-range chunks and releases unused model caches. `MapSystems::Stream`
+is a composition ordering seam. `missing_for(Bounds)` reports pending collision
+chunks. Queries crossing pending/failed chunks conservatively return a blocked
+trace at the start; a composition must consult readiness before spawning/moving
+and must not interpret that as actual geometry overlap. Explicit per-query
+readiness in `Trace` remains a global interface improvement. Chunk decoding is
+currently synchronous; async loading and finer budgets remain open.
+
 ## Open decisions
 
-The exact package schema/extension, compression, chunk granularity, mesh sweep
-implementation, source collision primitive inventory, interior/LOD treatment,
-origin handling, general hull-shape API, and streaming readiness contract remain
-open. Record decisions with the implementation that motivates them. Separate
-implemented behavior from proposed capabilities and known fidelity gaps.
+Global format consolidation, BSP package support, compression, chunk policy,
+interior/LOD treatment, origin handling, generalized hull shapes, explicit trace
+readiness/surface results and async streaming remain open. The v1 prototype above
+records current behavior; it does not close these global design decisions.

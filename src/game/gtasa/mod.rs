@@ -1,4 +1,4 @@
-//! GTA: San Andreas integration namespace. No importer or mechanics implemented yet.
+//! GTA: San Andreas assets and mechanics, independent of cross-game compositions.
 
 pub mod game;
 pub mod importers;

@@ -17,7 +17,7 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 
 | Area | Current implementation | Direction |
 | --- | --- | --- |
-| Maps/worlds | GoldSrc GLB rendering plus BSP collision catalog; `CollisionWorld` boundary | Custom versioned shared map packages, multiple collision backends, large-world loading; see [maps.md](maps.md) |
+| Maps/worlds | GoldSrc GLB/BSP path; GTA-driven v1 package prototype, spatial runtime and source primitive backend behind `CollisionWorld` | Coordinator consolidates custom packages/multiple backends; see [maps.md](maps.md) and [gtasa-import.md](gtasa-import.md) |
 | Characters/controllers | `Character`, `PlayerCommand`, controller adapters, ordered intent/movement systems | A body can receive intent from keyboard, replay, AI, network, or VR; choose mechanics independently of the body asset and world |
 | Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`, `WeaponSelection`, `WeaponInventory<T>`; CS AK/M4A1/Desert Eagle profiles | Reuse intent, equip and ammo state; profiles supply ballistics/presentation. See [weapons.md](weapons.md) |
 | Items/pickups | Equipped weapon inventory exists; no general pickup/item contract yet | Separate item definitions, world instances and pickup interaction; keep source-game restrictions in profiles |
