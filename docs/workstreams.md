@@ -1,6 +1,8 @@
 # Parallel workstreams
 
-The user authorized ten independent workers, plus Coordinator, on 2026-10-03.
+The user authorized ten initial independent workers, plus Coordinator, on
+2026-10-03, and additional distinct workers as needed. World Presentation is the
+first additional worker, bringing the assigned worker count to eleven.
 GTA San Andreas is the primary world for initial integrations. Default model for
 new workers is Luna 6.0 (`gpt-6-luna`). Every worker uses its own Git worktree,
 private Cargo target, dedicated binary and generated-output directory.
@@ -17,12 +19,20 @@ private Cargo target, dedicated binary and generated-output directory.
 | Traffic | Separate lane/route representation, spawning and autonomous driving intent | `src/traffic/`, traffic demo/source path extraction, `docs/traffic.md` | `mashup-traffic` |
 | VR Controls | Real VR adapter to existing character and weapon intent, with desktop development fallback | VR controller/glue, `docs/vr-controls.md` | `mashup-vr-controls` |
 | GTA Assets | First car and pedestrian imports, then broader usable GTA model/animation coverage | New GTA vehicle/pedestrian/model-export modules and CLI, `docs/gtasa-assets.md` | `mashup-gtasa-assets` |
+| World Presentation | Opt-in LOD mesh materialization and stable placed-instance metadata for source-owned render policies | `src/maps/runtime.rs`, new runtime metadata/presentation seams, `docs/world-runtime.md` | `mashup-world-preview`, if a separate harness is needed |
 
 Coordinator owns central product decisions, `docs/maps.md`, `docs/shared-specs.md`,
 this register and integration into `mashup-gtasa-cstrike`. The former vehicle task
 in Coordinator is canceled; Vehicles now owns implementation. The CS movement
 checkpoint is inherited through the shared solver; uphill runtime confirmation
 remains open. Game ports stay clean implementations of their own game.
+
+World Presentation owns the shared rendering hook requested by GTASA: retain
+default detailed-only behavior, optionally materialize LOD render entities and
+expose placed-instance/model identity plus source metadata. GTASA owns its LOD
+link postprocessing, source distance/flag rules and visibility policy. Collision
+residency remains independent of render visibility. Coordinate runtime edits
+with Coordinator; `src/maps/collision.rs` remains outside this worker's scope.
 
 ## Shared boundaries
 
@@ -86,3 +96,4 @@ thread listings and update this register as needed.
 | Traffic | `client-new-thread:cad5b41b-60c0-4a12-acf8-b793a902f059` | `01a102e1-bdd2-76c2-b256-1022335e5ddc` |
 | VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | `01a102e1-c84f-7ea3-8245-775854233bce` |
 | GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | `01a102e1-d6c4-7cc2-9497-a3031b3be758` |
+| World Presentation | Creation pending | Pending app setup |

@@ -84,6 +84,11 @@ earlier vehicle implementation task is canceled in favor of the Vehicles worker.
 New distinct tasks may receive additional worker chats/worktrees as authorized
 by the user. The compilation cap and shared build gate remain in force.
 
+A further World Presentation worker owns the shared opt-in LOD entity/metadata
+hook. Source-game render policies stay with their port agents; rendering
+visibility must not disable detailed collision residency. Its source area and
+dedicated harness reservation are in the workstream register.
+
 Only the coordinator uses the primary checkout. New game agents receive independent
 sidebar chats and their own worktrees/binaries. Each uses game-specific imported
 assets and runtime output destinations. Share libraries and interfaces, not
