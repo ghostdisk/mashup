@@ -38,12 +38,29 @@ fn think<W: Resource + CollisionWorld>(world: Res<W>, time: Res<Time<Fixed>>, ta
         if delta.length() <= profile.attack_range {
             *state = AiState::Attack;
             if brain.cooldown <= 0.0 { if let Ok(mut target_hp) = target_health.get_mut(target_id) { target_hp.current = (target_hp.current - profile.damage).max(0.0); } brain.cooldown = profile.attack_period.max(0.05); }
-        } else { *state = AiState::Chase; let flat = delta.with_y(0.0); if flat.length_squared() > 1e-6 { let dir = flat.normalize(); command.movement = Vec2::Y; command.yaw = dir.x.atan2(-dir.z); } }
+        } else {
+            *state = AiState::Chase;
+            let flat = delta.with_y(0.0);
+            if flat.length_squared() > 1e-6 {
+                let direct = flat.normalize();
+                let direct_probe = world.trace(body.position, body.position + direct * 1.25, Hull::Standing);
+                let direction = if direct_probe.start_solid || direct_probe.fraction < 0.95 {
+                    [Quat::from_rotation_y(0.9) * direct, Quat::from_rotation_y(-0.9) * direct]
+                        .into_iter()
+                        .filter(|candidate| { let probe=world.trace(body.position, body.position + *candidate * 1.25, Hull::Standing); !probe.start_solid && probe.fraction >= 0.95 })
+                        .min_by(|a,b| (target.position - (body.position + *a)).length_squared().total_cmp(&(target.position - (body.position + *b)).length_squared()))
+                        .unwrap_or(Vec3::ZERO)
+                } else { direct };
+                if direction.length_squared() > 0.0 { command.movement = Vec2::Y; command.yaw = direction.x.atan2(-direction.z); }
+            }
+        }
     }
 }
 fn move_bodies<W: Resource + CollisionWorld>(world: Res<W>, time: Res<Time<Fixed>>, mut actors: Query<(&PlayerCommand, &AiProfile, &mut MovementConfig, &mut MovementState, &mut Transform), With<AiActor>>) {
     for (command, profile, mut config, mut body, mut transform) in &mut actors { config.max_speed = profile.move_speed; movement::step(&mut body, command, &config, &*world, time.delta_secs()); transform.translation = body.position; }
 }
+
+
 
 
 
