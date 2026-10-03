@@ -6,6 +6,13 @@ direction. Game agents own their implementations and game-specific decisions.
 Support working features, notice duplication, and extract useful common contracts
 as they emerge. An incomplete global spec is not a reason to halt a game port.
 
+Game-port ownership and global integration are separate responsibilities. A port
+agent implements its game's assets and behavior in a clean game binary. The
+coordinator implements global systems and cross-game mashups, or delegates a
+self-contained task to a dedicated global/mashup agent. Shared map-format design
+and cross-backend support are global work; a GTA importer is port work. Combining
+CS mechanics with the GTA world is a separate composition, not a GTA-port feature.
+
 ## Shared system register
 
 | Area | Current implementation | Direction |
@@ -32,12 +39,18 @@ Importers preserve facts; game profiles supply rules; compositions choose the mi
 | --- | --- | --- | --- |
 | Coordinator | Primary `D:\Mashup` checkout | `mashup` | Product direction, living specs, ownership, integration support, continuation of unfinished game work |
 | CS | Own Git worktree | `mashup-cstrike` | CS reimplementation; next milestone is additional weapons and weapon selection/switching |
-| GTASA | Own Git worktree | `mashup-gtasa` | San Andreas reimplementation; first import the main map, then run CS movement/shooting on it |
+| GTASA | Own Git worktree | `mashup-gtasa` | Clean San Andreas reimplementation; first import the main map, then implement GTA features |
 
 Only the coordinator uses the primary checkout. New game agents receive independent
 sidebar chats and their own worktrees/binaries. Each uses game-specific imported
 assets and runtime output destinations. Share libraries and interfaces, not
 executable ownership or mutable captures/log files.
+
+The coordinator owns the first GTA-world/CS-mechanics composition and shared map
+format design. A dedicated agent may take either self-contained global task in
+its own worktree, with a separate binary for a runnable mashup. The initial GTA
+format prototype already underway is allowed to inform this first format revision;
+future assignments must preserve the port/global responsibility split.
 
 ## How work proceeds
 
@@ -74,4 +87,5 @@ Background coordination stays quiet while work is active or unchanged. Avoid
 repeated wakeups, identical assignments, and per-build reports. Involve the user
 for a meaningful outcome, a product decision, or a blocker requiring their help.
 The first immediate continuation is CS weapon expansion; GTA's initial sequence
-is the main map pipeline followed by the first GTA-world/CS-mechanics mashup.
+is its main map pipeline followed by GTA features. The coordinator tracks the
+separate GTA-world/CS-mechanics mashup after the required port capabilities exist.

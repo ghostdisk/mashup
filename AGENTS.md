@@ -32,8 +32,8 @@ Current binary ownership:
 
 - `mashup`: coordinator-owned shared launcher.
 - `mashup-cstrike`: the `CS` agent's Counter-Strike port.
-- `mashup-gtasa`: the `GTASA` agent's San Andreas port and first GTA-map/CS-mechanics
-  composition. Its first milestone is the main map import and runtime pipeline.
+- `mashup-gtasa`: the `GTASA` agent's clean San Andreas port. Its first milestone
+  is the main map import and runtime pipeline, followed by GTA-specific features.
 - Future ports: reserve a distinct `mashup-<game>` binary with the coordinator.
 
 Worktrees isolate source files, but they may share Cargo's target directory.
@@ -62,6 +62,16 @@ open decisions, and useful shared standards. These are living contracts; agents
 may improve them as real implementation needs emerge. Avoid redundant engines
 and premature abstractions, and support game-specific work rather than blocking
 it on a complete global specification.
+
+Game-port binaries stay faithful to their own game's implementation. Cross-game
+mashups use separate compositions/binaries and belong to the coordinator, who may
+delegate a self-contained mashup to a dedicated agent in its own worktree.
+Global tasks such as designing the shared map format or supporting multiple
+games' collision representations also belong to the coordinator or a dedicated
+global-task agent. A game-port agent supplies its source importer, backend,
+requirements, and reusable game systems; it is not responsible for implementing
+another game's mechanics or designing the global format. Port-driven improvements
+to shared interfaces remain welcome and should be coordinated normally.
 
 Game ports are long-running objectives. A completed checkpoint does not mean a
 port is complete. When a game chat becomes idle with work remaining, the

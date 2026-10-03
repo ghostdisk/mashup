@@ -3,8 +3,9 @@
 This document describes Mashup's map direction and current implementation. The
 custom map format belongs to all games, including future ports. It will evolve
 with working importers and runtimes; it is not a frozen file specification.
-The coordinator owns its product direction, and implementing agents contribute
-the concrete design and document the revisions they ship.
+The coordinator owns its design and product direction, and may delegate concrete
+format work to a dedicated global-task agent. Game-port agents contribute source
+requirements, importers/backends, and implementation feedback.
 
 ## Current state
 
@@ -27,7 +28,9 @@ collision and large-world loading. Exact source primitive types, coordinate
 conversion, and archive/layout details must be established from that installation.
 
 The first cross-game milestone is the San Andreas map with CS movement and
-shooting. It must reuse the CS mechanics and shared controller/collision contracts.
+shooting. This is coordinator-owned integration in a separate mashup composition;
+`mashup-gtasa` remains a clean GTA implementation. The mixed composition must reuse
+the CS mechanics and shared controller/collision contracts.
 
 ## Why a custom format
 
@@ -63,9 +66,12 @@ movement, weapon, vehicle, or mission rules into the map container.
   Loading a map does not automatically enable its source game's rules or scripts.
 
 A manifest plus independently addressable payloads is the starting direction.
-The first implementer chooses the initial extension, concrete schema, payload
-encoding, chunk scheme, and indexing strategy and records the implemented version
-here. Do not invent a finalized binary layout before a reader/writer exists.
+The coordinator or a dedicated format agent owns the initial extension, concrete
+schema, payload encoding, chunk scheme, and indexing strategy, informed by working
+port requirements. Record the implemented version here. Do not invent a finalized
+binary layout before a reader/writer exists. The initial GTA package prototype
+already underway may contribute to this first revision; that exception does not
+assign global format design or BSP implementation to the GTA port.
 
 ## Runtime behavior
 
@@ -96,22 +102,24 @@ behavior for every shipped revision; do not silently reinterpret older data.
 
 ## Delivery sequence and ownership
 
-1. GTASA owns source discovery, a useful main-map rendering milestone, the first
-   custom package reader/writer, and its map/collision backend. Iterate toward
-   complete main-map coverage; distinguish partial imports from completeness.
-2. Expose map loading and collision to reusable gameplay. Compose the GTA world
-   with CS movement/shooting in `mashup-gtasa`, with playable spawns and body/ray
-   queries against the actual world. Share weapon/controller systems rather than
-   copying the CS implementation into the GTA port.
-3. Make GoldSrc a second producer/consumer of the custom format, preserving its
-   BSP collision fidelity. Keep the legacy path usable until migration works.
-4. Evolve object records, streaming, surfaces, and spatial queries as vehicles,
-   pickups, interiors, and other features create concrete requirements.
+1. GTASA owns source discovery, useful main-map rendering, its source converter,
+   and its map/collision backend. Iterate toward complete main-map coverage and
+   GTA features in `mashup-gtasa`; distinguish partial imports from completeness.
+2. The coordinator or a dedicated global-task agent designs and implements the
+   shared format/runtime, including multi-backend architecture and BSP support.
+   Game agents supply concrete source requirements and converters against it.
+3. The coordinator or a dedicated mashup agent composes the GTA world with CS
+   movement/shooting in a separate binary, with playable spawns and body/ray
+   queries against the actual world. Reuse both ports' capabilities and keep
+   `mashup-gtasa` and `mashup-cstrike` clean game implementations.
+4. Coordinate GoldSrc migration to the shared format, preserving BSP collision
+   fidelity and keeping the legacy path usable until migration works. Evolve
+   object records, streaming, surfaces, and queries as real features need them.
 
-The coordinator maintains cross-game direction and helps resolve shared seams.
-CS owns its mechanics and weapon expansion. GTASA owns map integration and the
-first mixed composition. Coordinate overlapping edits to first-person glue so
-weapon work and map-backend work can proceed independently. Proposals and working
+The coordinator owns cross-game integration and global design and helps resolve
+shared seams. CS owns its mechanics and weapon expansion. GTASA owns its native
+world/asset integration and GTA mechanics. Coordinate overlapping shared edits
+so port work and global work proceed independently. Proposals and useful working
 prototypes do not wait for the entire format to be designed.
 
 ## Open decisions
