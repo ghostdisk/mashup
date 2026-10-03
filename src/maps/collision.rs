@@ -146,7 +146,10 @@ pub fn hull_half(hull:Hull)->Vec3 {
 }
 impl CollisionWorld for MeshCollisionWorld {
     fn trace(&self,start:Vec3,end:Vec3,hull:Hull)->Trace {
-        let half=hull_half(hull);let bounds=Bounds{min:start.min(end)-half-Vec3::splat(SKIN),max:start.max(end)+half+Vec3::splat(SKIN)};
+        self.trace_aabb(start,end,hull_half(hull))
+    }
+    fn trace_aabb(&self,start:Vec3,end:Vec3,half:Vec3)->Trace {
+        let bounds=Bounds{min:start.min(end)-half-Vec3::splat(SKIN),max:start.max(end)+half+Vec3::splat(SKIN)};
         if !self.missing_for(bounds).is_empty() {return Trace{fraction:0.0,end:start,normal:(start-end).normalize_or_zero(),start_solid:true};}
         let mut result=Trace::clear(end);
         for (id,chunk) in &self.loaded {

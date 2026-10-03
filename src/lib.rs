@@ -15,6 +15,7 @@ pub mod traffic;
 #[cfg(feature = "vr")]
 pub mod vr;
 pub mod weapon;
+pub mod vehicle;
 
 /// Composition order for controllers and body movement.
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]

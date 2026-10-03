@@ -40,13 +40,23 @@ impl Trace {
 /// A backend owns geometry; a movement implementation owns the body and rules.
 pub trait CollisionWorld {
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace;
+
+    /// Sweep an axis-aligned body in meters. Legacy backends may approximate
+    /// this with a standard hull; backends with general shape support override it.
+    fn trace_aabb(&self, start: Vec3, end: Vec3, half_extents: Vec3) -> Trace {
+        let _ = half_extents;
+        self.trace(start, end, Hull::Standing)
+    }
 }
 
 /// Useful for controller tests and an asset-free mechanics playground.
 pub struct FloorWorld;
 impl CollisionWorld for FloorWorld {
     fn trace(&self, start: Vec3, end: Vec3, hull: Hull) -> Trace {
-        let height = hull.half_extents().y;
+        self.trace_aabb(start,end,hull.half_extents())
+    }
+    fn trace_aabb(&self,start:Vec3,end:Vec3,half:Vec3)->Trace {
+        let height = half.y;
         let mut trace = Trace::clear(end);
         trace.start_solid = start.y < height - 0.0001;
         if end.y < height && start.y >= height {
