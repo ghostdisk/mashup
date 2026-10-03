@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 
 pub mod animation;
+pub mod assets;
 pub mod character;
 pub mod collision;
 pub mod controller;

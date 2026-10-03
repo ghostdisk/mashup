@@ -22,6 +22,10 @@ name = "mashup-gtasa"
 path = "src/bin/mashup-gtasa.rs"
 
 [[bin]]
+name = "mashup-assets"
+path = "src/bin/mashup-assets.rs"
+
+[[bin]]
 name = "mashup-traffic"
 path = "src/bin/mashup-traffic.rs"
 
