@@ -2,6 +2,7 @@
 pub mod mesh;
 pub mod collision;
 pub mod runtime;
+pub mod presentation;
 
 use bevy::prelude::*;
 use serde_json::Value;

@@ -3,6 +3,13 @@ use super::{Bounds, MapPackage, Result, payload_path, read_json, rotation, vec3,
 use bevy::{asset::RenderAssetUsages, image::{ImageAddressMode,ImageLoaderSettings,ImageSampler,ImageSamplerDescriptor},mesh::{Indices,PrimitiveTopology},prelude::*};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
+use super::presentation::{PlacedInstanceId, PlacedModelId, PlacedModelLod, PlacedSourceMetadata};
+
+/// Startup policy for optional render-only model classes. LOD geometry remains
+/// absent unless a composition explicitly opts in before streaming starts.
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct MapRuntimeConfig { pub materialize_lods: bool }
+impl Default for MapRuntimeConfig { fn default() -> Self { Self { materialize_lods: false } } }
 
 #[derive(Resource)]
 pub struct StreamingFocus {pub position:Vec3,pub radius:f32}
@@ -25,10 +32,11 @@ impl MapRuntime {
     pub fn resident_chunks(&self)->usize {self.chunks.len()}
     pub fn resident_models(&self)->usize {self.models.len()}
     pub fn failed_chunks(&self)->usize {self.failed.len()}
-    fn load_model(&mut self,id:&str,package:&MapPackage,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<()> {
+    fn load_model(&mut self,id:&str,package:&MapPackage,materialize_lods:bool,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<()> {
         if self.models.contains_key(id) {return Ok(());}
         let model=&package.manifest["models"][id];
-        if model["lod"]==true {self.models.insert(id.into(),RuntimeModel{parts:Vec::new(),collision:None,lod:true});return Ok(());}
+        let is_lod=model["lod"]==true;
+        if is_lod && !materialize_lods {self.models.insert(id.into(),RuntimeModel{parts:Vec::new(),collision:None,lod:true});return Ok(());}
         let path=model["mesh"].as_str().ok_or_else(||format!("model {id}: missing mesh"))?;
         let data=MeshData::read(&payload_path(&package.root,path)?)?;
         let collision=if let Some(path)=model["collision"].as_str(){Some(read_json(&payload_path(&package.root,path)?)?)}else{None};
@@ -59,26 +67,29 @@ impl MapRuntime {
             mesh.insert_indices(Indices::U32(indices));
             parts.push((meshes.add(mesh),material));
         }
-        self.models.insert(id.into(),RuntimeModel{parts,collision,lod:model["lod"]==true});Ok(())
+        self.models.insert(id.into(),RuntimeModel{parts,collision:if is_lod {None}else{collision},lod:is_lod});Ok(())
     }
 }
 pub struct MapRuntimePlugin;
-impl Plugin for MapRuntimePlugin {fn build(&self,app:&mut App){app.add_systems(Update,stream.in_set(MapSystems::Stream));}}
+impl Plugin for MapRuntimePlugin {fn build(&self,app:&mut App){app.init_resource::<MapRuntimeConfig>().add_systems(Update,stream.in_set(MapSystems::Stream));}}
 
-fn load_chunk(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runtime:&mut MapRuntime,collision:&mut MeshCollisionWorld,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<ResidentChunk> {
+fn load_chunk(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runtime:&mut MapRuntime,config:MapRuntimeConfig,collision:&mut MeshCollisionWorld,server:&AssetServer,meshes:&mut Assets<Mesh>,materials:&mut Assets<StandardMaterial>)->Result<ResidentChunk> {
     let id=descriptor["id"].as_str().ok_or("chunk missing id")?;let chunk=package.chunk(descriptor)?;
     let instances=chunk["instances"].as_array().unwrap();let mut model_ids=BTreeSet::new();
-    for instance in instances {let model=instance["model"].as_str().ok_or("instance missing model")?;runtime.load_model(model,package,server,meshes,materials)?;model_ids.insert(model.into());vec3(&instance["translation"])?;rotation(&instance["rotation"])?;}
+    for instance in instances {let model=instance["model"].as_str().ok_or("instance missing model")?;runtime.load_model(model,package,config.materialize_lods,server,meshes,materials)?;model_ids.insert(model.into());vec3(&instance["translation"])?;rotation(&instance["rotation"])?;}
     collision.begin_chunk(id);let mut entities=Vec::new();
     for instance in instances {
         let model=&runtime.models[instance["model"].as_str().unwrap()];
-        // First prototype renders detailed exterior geometry. LOD records are retained.
-        if model.lod {continue;}
+        // LOD materialization changes rendering only; detailed collision stays resident.
+        if model.lod && !config.materialize_lods {continue;}
         let translation=vec3(&instance["translation"])?;let rotation=rotation(&instance["rotation"])?;
-        if let Some(payload)=&model.collision {if let Err(e)=collision.add_instance(id,payload,translation,rotation) {
+        if !model.lod {if let Some(payload)=&model.collision {if let Err(e)=collision.add_instance(id,payload,translation,rotation) {
             collision.unload_chunk(id);for entity in entities {commands.entity(entity).despawn();}return Err(format!("{id}: {e}"));
-        }}
-        let entity=commands.spawn((Name::new(instance["id"].as_str().unwrap_or("World object").to_owned()),Transform::from_translation(translation).with_rotation(rotation),Visibility::default())).id();
+        }}}
+        let instance_id=instance["id"].as_str().ok_or("instance missing id")?;
+        let model_id=instance["model"].as_str().unwrap();
+        let initial_visibility=if model.lod {Visibility::Hidden}else{Visibility::default()};
+        let entity=commands.spawn((Name::new(instance_id.to_owned()),PlacedInstanceId(instance_id.to_owned()),PlacedModelId(model_id.to_owned()),if model.lod {PlacedModelLod::Lod}else{PlacedModelLod::Detailed},PlacedSourceMetadata{instance:instance["source"].clone(),model:package.manifest["models"][model_id]["source"].clone()},Transform::from_translation(translation).with_rotation(rotation),initial_visibility)).id();
         for (mesh,material) in &model.parts {commands.spawn((Mesh3d(mesh.clone()),MeshMaterial3d(material.clone()),Transform::default(),ChildOf(entity)));}
         entities.push(entity);
     }
@@ -86,7 +97,7 @@ fn load_chunk(commands:&mut Commands,package:&MapPackage,descriptor:&Value,runti
 }
 
 #[allow(clippy::too_many_arguments)]
-fn stream(mut commands:Commands,time:Res<Time>,package:Res<MapPackage>,focus:Res<StreamingFocus>,mut runtime:ResMut<MapRuntime>,mut collision:ResMut<MeshCollisionWorld>,server:Res<AssetServer>,mut meshes:ResMut<Assets<Mesh>>,mut materials:ResMut<Assets<StandardMaterial>>) {
+fn stream(mut commands:Commands,time:Res<Time>,package:Res<MapPackage>,focus:Res<StreamingFocus>,config:Res<MapRuntimeConfig>,mut runtime:ResMut<MapRuntime>,mut collision:ResMut<MeshCollisionWorld>,server:Res<AssetServer>,mut meshes:ResMut<Assets<Mesh>>,mut materials:ResMut<Assets<StandardMaterial>>) {
     runtime.elapsed+=time.delta_secs();if runtime.elapsed<0.15 {return;}runtime.elapsed=0.0;
     let query=Bounds{min:focus.position-Vec3::new(focus.radius,2500.0,focus.radius),max:focus.position+Vec3::new(focus.radius,2500.0,focus.radius)};
     let chunks=package.manifest["chunks"].as_array().unwrap();
@@ -100,7 +111,7 @@ fn stream(mut commands:Commands,time:Res<Time>,package:Res<MapPackage>,focus:Res
     // pending chunks as empty; collisions conservatively stop until they are ready.
     if let Some(descriptor)=pending.first() {
         let id=descriptor["id"].as_str().unwrap().to_owned();
-        match load_chunk(&mut commands,&package,descriptor,&mut runtime,&mut collision,&server,&mut meshes,&mut materials) {
+        match load_chunk(&mut commands,&package,descriptor,&mut runtime,*config,&mut collision,&server,&mut meshes,&mut materials) {
             Ok(chunk)=>{runtime.chunks.insert(id,chunk);},
             Err(error)=>{error!("Map chunk load failed: {error}");runtime.failed.insert(id,error);},
         }
