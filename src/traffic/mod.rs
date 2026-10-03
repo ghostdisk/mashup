@@ -5,6 +5,7 @@
 //! the sole owner of steering and physical integration.
 
 use bevy::prelude::*;
+use crate::{CharacterSystems, vehicle::{DriverIntent, Vehicle, VehicleState}};
 
 /// Stable identifier for an authored/imported lane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -45,6 +46,7 @@ impl Lane {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Route {
     pub lanes: Vec<LaneId>,
+    pub closed_loop: bool,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -88,7 +90,7 @@ pub struct TrafficAgent {
     pub route: Route,
     pub lane_index: usize,
     pub distance_on_lane_m: f32,
-    pub speed_mps: f32,
+    pub lap: u32,
     pub desired_speed_mps: f32,
 }
 
@@ -117,7 +119,8 @@ impl Plugin for TrafficPlugin {
         app.init_resource::<RoadNetwork>()
             .init_resource::<TrafficBudget>()
             .init_resource::<TrafficPopulation>()
-            .add_systems(FixedUpdate, (spawn_agents, update_agents, despawn_distant).chain());
+            .add_systems(FixedUpdate, (spawn_agents, update_agents, apply_vehicle_intent).chain().in_set(CharacterSystems::Intent))
+            .add_systems(FixedUpdate, despawn_distant);
     }
 }
 
@@ -134,35 +137,60 @@ fn spawn_agents(
     for _ in 0..count {
         let route = population.routes[population.next_route % population.routes.len()].clone();
         population.next_route = population.next_route.wrapping_add(1);
-        let Some(lane_id) = route.lanes.first() else { continue; };
-        let Some(lane) = network.lane(*lane_id) else { continue; };
-        let Some((position, _)) = lane.sample(0.0) else { continue; };
+        let Some((lane_index, distance_on_lane_m, position, direction, _)) = sample_route(&network, &route, agents.iter().count() as f32 * 12.0) else { continue; };
+        let desired_speed_mps = route.lanes.iter().filter_map(|id| network.lane(*id)).map(|lane| lane.speed_limit_mps).fold(0.0_f32, f32::max);
         commands.spawn((
-            TrafficAgent { route, lane_index: 0, distance_on_lane_m: 0.0, speed_mps: 0.0, desired_speed_mps: lane.speed_limit_mps.max(0.0) },
+            TrafficAgent { route, lane_index, distance_on_lane_m, lap: 0, desired_speed_mps: desired_speed_mps.max(0.0) },
             TrafficDriverIntent::default(),
-            Transform::from_translation(position),
+            Vehicle::default(),
+            VehicleState::default(),
+            DriverIntent::default(),
+            Transform::from_translation(position).looking_to(direction, Vec3::Y),
             GlobalTransform::default(),
         ));
     }
+}
+
+fn sample_route(network: &RoadNetwork, route: &Route, mut distance: f32) -> Option<(usize, f32, Vec3, Vec3, f32)> {
+    for (lane_index, lane_id) in route.lanes.iter().enumerate() {
+        let lane = network.lane(*lane_id)?;
+        let length = lane.length();
+        if length <= 1.0e-4 { continue; }
+        if distance <= length {
+            let (position, direction) = lane.sample(distance)?;
+            return Some((lane_index, distance, position, direction, lane.speed_limit_mps));
+        }
+        distance -= length;
+    }
+    None
 }
 
 fn update_agents(
     time: Res<Time<Fixed>>,
     network: Res<RoadNetwork>,
     mut agent_queries: ParamSet<(
-        Query<&TrafficAgent>,
-        Query<(&mut TrafficAgent, &mut TrafficDriverIntent, &mut Transform)>,
+        Query<(Entity, &Transform, Option<&TrafficAgent>, Option<&TrafficObstacle>, Option<&VehicleState>)>,
+        Query<(Entity, &mut TrafficAgent, &mut TrafficDriverIntent, &Transform, &VehicleState)>,
     )>,
 ) {
     let dt = time.delta_secs();
-    let nearby: Vec<_> = agent_queries.p0().iter().cloned().collect();
-    for (mut agent, mut intent, _transform) in &mut agent_queries.p1() {
+    let nearby: Vec<_> = agent_queries.p0().iter().map(|(entity, transform, agent, obstacle, state)| {
+        (entity, transform.translation, agent.cloned(), obstacle.copied(), state.map(|state| state.speed_mps))
+    }).collect();
+    for (entity, mut agent, mut intent, transform, vehicle_state) in &mut agent_queries.p1() {
+        let speed_mps = vehicle_state.speed_mps;
         let Some(lane_id) = agent.route.lanes.get(agent.lane_index) else { intent.throttle = 0.0; intent.brake = 1.0; continue; };
         let Some(lane) = network.lane(*lane_id) else { intent.throttle = 0.0; intent.brake = 1.0; continue; };
         if lane.points.len() < 2 { intent.throttle = 0.0; intent.brake = 1.0; continue; }
         if agent.distance_on_lane_m >= lane.length() {
             if agent.lane_index + 1 < agent.route.lanes.len() {
                 agent.lane_index += 1;
+                agent.distance_on_lane_m = 0.0;
+                continue;
+            }
+            if agent.route.closed_loop {
+                agent.lap = agent.lap.wrapping_add(1);
+                agent.lane_index = 0;
                 agent.distance_on_lane_m = 0.0;
                 continue;
             }
@@ -174,36 +202,64 @@ fn update_agents(
             continue;
         }
         let Some((target, direction)) = lane.sample(agent.distance_on_lane_m + 4.0) else { continue; };
-        let forward = transform.rotation * Vec3::Z;
+        let forward = transform.rotation * Vec3::NEG_Z;
         let cross = forward.x * direction.z - forward.z * direction.x;
         let dot = forward.x * direction.x + forward.z * direction.z;
-        intent.steering = cross.atan2(dot).clamp(-1.0, 1.0);
+        // Positive simulator yaw turns the vehicle toward local -X.
+        intent.steering = (-cross.atan2(dot)).clamp(-1.0, 1.0);
         let mut speed_limit = lane.speed_limit_mps.max(0.0).min(agent.desired_speed_mps.max(0.0));
         // Same-route agents use route distance for a simple safe headway. The
         // vehicle backend can add richer collision sensing without changing
         // this traffic policy contract.
         let progress = route_progress(&network, &agent);
-        if let Some((gap, lead_speed)) = nearby.iter().filter_map(|other| {
+        if let Some((gap, lead_speed)) = nearby.iter().filter_map(|(other_entity, _, other, _, other_speed)| {
+            if *other_entity == entity { return None; }
+            let other = other.as_ref()?;
+            let other_speed = (*other_speed)?;
             if other.route != agent.route { return None; }
             let gap = route_progress(&network, other) - progress;
-            (gap > 0.0 && gap < 35.0).then_some((gap, other.speed_mps))
+            (gap > 0.0 && gap < 35.0).then_some((gap, other_speed))
         }).min_by(|a, b| a.0.total_cmp(&b.0)) {
-            let safe_gap = 5.0 + agent.speed_mps.max(0.0) * 1.4;
+            let safe_gap = 5.0 + speed_mps.max(0.0) * 1.4;
             if gap < safe_gap { speed_limit = speed_limit.min(lead_speed.max(0.0) * (gap / safe_gap).clamp(0.0, 1.0)); }
+        }
+        let facing = transform.rotation * Vec3::NEG_Z;
+        let forward = Vec2::new(facing.x, facing.z).normalize_or_zero();
+        for (other_entity, position, other, obstacle, _) in &nearby {
+            if *other_entity == entity || other.is_some() { continue; }
+            let Some(obstacle) = obstacle else { continue; };
+            let delta = *position - transform.translation;
+            let relative = Vec2::new(delta.x, delta.z);
+            let ahead = relative.dot(forward);
+            let lateral = (relative - forward * ahead).length();
+            let stopping_gap = 4.0 + speed_mps.max(0.0) * 1.6 + obstacle.radius_m.max(0.0);
+            if ahead > 0.0 && ahead < stopping_gap && lateral < obstacle.radius_m.max(0.5) + 1.0 {
+                speed_limit = speed_limit.min(obstacle.speed_mps.max(0.0) * (ahead / stopping_gap).clamp(0.0, 1.0));
+            }
         }
         intent.target_speed_mps = speed_limit;
         intent.target_position = target;
-        intent.throttle = if agent.speed_mps < speed_limit { ((speed_limit - agent.speed_mps) / 3.0).clamp(0.0, 1.0) } else { 0.0 };
-        intent.brake = if agent.speed_mps > speed_limit + 0.5 { ((agent.speed_mps - speed_limit) / 4.0).clamp(0.0, 1.0) } else { 0.0 };
+        intent.throttle = if speed_mps < speed_limit { ((speed_limit - speed_mps) / 3.0).clamp(0.0, 1.0) } else { 0.0 };
+        intent.brake = if speed_mps > speed_limit + 0.5 { ((speed_mps - speed_limit) / 4.0).clamp(0.0, 1.0) } else { 0.0 };
         // Progress is estimated from reported speed; the vehicle backend still
         // owns actual movement and may overwrite Transform during integration.
-        agent.distance_on_lane_m += agent.speed_mps.max(0.0) * dt;
+        agent.distance_on_lane_m += speed_mps.max(0.0) * dt;
         // Position and rotation are owned by vehicle simulation.
     }
 }
 
+fn apply_vehicle_intent(mut agents: Query<(&TrafficAgent, &TrafficDriverIntent, &mut DriverIntent)>) {
+    for (agent, traffic, mut vehicle) in &mut agents {
+        if agent.route.lanes.is_empty() { *vehicle = default(); continue; }
+        vehicle.steer = traffic.steering.clamp(-1.0, 1.0);
+        vehicle.throttle = traffic.throttle.clamp(0.0, 1.0);
+        vehicle.brake = traffic.brake.clamp(0.0, 1.0);
+    }
+}
+
 fn route_progress(network: &RoadNetwork, agent: &TrafficAgent) -> f32 {
-    agent.route.lanes.iter().take(agent.lane_index).filter_map(|id| network.lane(*id)).map(Lane::length).sum::<f32>() + agent.distance_on_lane_m
+    let route_length: f32 = agent.route.lanes.iter().filter_map(|id| network.lane(*id)).map(Lane::length).sum();
+    route_length * agent.lap as f32 + agent.route.lanes.iter().take(agent.lane_index).filter_map(|id| network.lane(*id)).map(Lane::length).sum::<f32>() + agent.distance_on_lane_m
 }
 
 fn despawn_distant(
