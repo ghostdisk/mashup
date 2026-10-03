@@ -1,4 +1,5 @@
 /target
+/tools/capped-rustc.exe
 
 # Player-owned source files and converted content must stay local.
 /assets/imported/

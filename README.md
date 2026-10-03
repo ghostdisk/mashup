@@ -20,6 +20,15 @@ Build Tools with the **Desktop development with C++** workload and a Windows SDK
 Linux and macOS setup is described in the
 [Bevy setup guide](https://bevy.org/learn/quick-start/getting-started/setup/).
 
+On Windows, use the capped helper for the first build; it creates the native
+compiler wrapper used by subsequent Cargo commands:
+
+```powershell
+.\tools\build.ps1 build --locked --bin mashup
+```
+
+See [build resource limits](docs/builds.md). Agents use this helper for every build.
+
 ```sh
 cargo run --locked
 ```

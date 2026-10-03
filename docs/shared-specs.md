@@ -98,6 +98,9 @@ questions, approvals, or usage limits.
 Background coordination stays quiet while work is active or unchanged. Avoid
 repeated wakeups, identical assignments, and per-build reports. Involve the user
 for a meaningful outcome, a product decision, or a blocker requiring their help.
+Batch communication; the user's preference is roughly one coordination message
+per five minutes on average. Avoid routine progress chatter and repeated peer
+check-ins while agents work.
 The first immediate continuation is CS weapon expansion; GTA's initial sequence
 is its main map pipeline followed by GTA features. The coordinator tracks the
 separate GTA-world/CS-mechanics mashup after the required port capabilities exist.

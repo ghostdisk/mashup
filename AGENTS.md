@@ -11,13 +11,14 @@ work on a shared core.
 - Don't write tests or run tests
 - Don't spawn subagents unless you're a coordiantor agent.
 - Always work in dev build
-- Windows builds use `.cargo/config.toml` and `tools/capped-rustc.cmd`: one Cargo
+- Windows builds use `.cargo/config.toml` and `tools/capped-rustc.rs`: one Cargo
   job, six logical CPUs maximum (affinity `0x3f`), BelowNormal compiler/linker
   priority. Do not override the cap or restart an uncapped build. Keep the
   wrapper active in private worktree targets too. Agents build with
   `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` from their
   worktree. Its shared mutex permits one build across agents, preventing several
-  memory-heavy compilers/linkers from running together. The gate is automatic;
+  memory-heavy compilers/linkers from running together. It bootstraps the ignored
+  native wrapper executable under the same cap. The gate is automatic;
   routine builds do not need coordinator approval.
 
 ## Agent coordination
@@ -92,3 +93,6 @@ Respect explicit pauses, cancellations, approval requests, and usage limits.
 Agents are authorized to message the coordinator and relevant peer game agents
 for this project coordination. Keep background coordination quiet while work is
 active or unchanged, and involve the user when a decision or blocker needs them.
+The user prefers roughly one coordination message per five minutes on average.
+Batch meaningful updates, avoid repetitive progress chatter and peer messages,
+and let active agents work without repeated check-ins.
