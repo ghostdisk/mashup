@@ -127,6 +127,11 @@ worktrees can still share Cargo artifacts, including stale library output across
 divergent source. Use private worktree targets as directed by `AGENTS.md`; avoid
 broad builds or cleaning an active shared target. Coordinate transitions.
 
+The central build helper now shares dependency intermediates while isolating
+workspace-crate hashes through a unique workspace-wrapper path. Final targets
+remain private. This avoids recompiling the unchanged Bevy graph in every new
+worktree without reintroducing stale cross-worktree application libraries.
+
 ## Continuing long-running ports
 
 Game-port completion means the broader user objective is met, not that the latest
@@ -139,8 +144,8 @@ questions, approvals, or usage limits.
 Background coordination stays quiet while work is active or unchanged. Avoid
 repeated wakeups, identical assignments, and per-build reports. Involve the user
 for a meaningful outcome, a product decision, or a blocker requiring their help.
-Batch communication; the user's preference is roughly one coordination message
-per five minutes on average. Avoid routine progress chatter and repeated peer
+Batch worker communication; Coordinator now provides meaningful progress about
+once a minute during active work. Avoid routine progress chatter and repeated peer
 check-ins while agents work.
 The first immediate continuation is CS weapon expansion; GTA's initial sequence
 is its main map pipeline followed by GTA features. The coordinator tracks the

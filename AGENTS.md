@@ -11,14 +11,15 @@ work on a shared core.
 - Don't write tests or run tests
 - Don't spawn subagents unless you're a coordiantor agent.
 - Always work in dev build
-- Windows builds use `.cargo/config.toml` and `tools/capped-rustc.rs`: two Cargo
-  jobs, eight logical CPUs maximum (affinity `0xff`), BelowNormal compiler/linker
+- Windows builds use `.cargo/config.toml` and `tools/capped-rustc.rs`: twelve Cargo
+  jobs, physical core count minus two (including those cores' SMT threads), Normal compiler/linker
   priority. Do not override the cap or restart an uncapped build. Keep the
   wrapper active in private worktree targets too. All builds share the same CPU
-  mask; the jobs do not receive separate CPU budgets. Agents build with
+  mask; the jobs do not receive separate CPU budgets. On this 8-core/16-thread
+  machine the budget is six physical cores / twelve logical CPUs. Agents build with
   `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` from their
   worktree. Its shared mutex permits one build across agents, preventing several
-  memory-heavy compilers/linkers from running together. It bootstraps the ignored
+  independent cold dependency builds from running together. It bootstraps the ignored
   native wrapper executable under the same cap. The gate is automatic;
   routine builds do not need coordinator approval.
 
@@ -62,10 +63,19 @@ Use explicit commands such as `cargo build --locked --bin mashup-cstrike` and
 `cargo run --locked --bin mashup-cstrike`. Avoid broad builds that also replace
 another agent's executable. Always use dev builds.
 
-Dedicated binaries do not isolate the shared library's cached artifacts. When
-worktrees have divergent source, use a private target directory (for example
+Dedicated binaries do not isolate application library caches by themselves.
+The central helper now uses a shared dependency build directory plus a distinct
+`RUSTC_WORKSPACE_WRAPPER` path per worktree. Cargo incorporates that path into
+workspace-crate artifact hashes, so divergent application sources are isolated
+while unchanged registry dependencies are reused. Keep a private final target
+directory (for example
 `$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'` in PowerShell).
-CS already uses a private target; use this default for new worktrees too.
+Use this default for new worktrees too. Do not bypass the helper's workspace
+wrapper, clear the shared cache, change global compiler flags/profiles for one
+worker, or copy another worker's application artifacts. The helper primes the
+cache once from completed coordinator dependency artifacts; source targets remain
+untouched. Changing dependency features/toolchains/profiles legitimately creates
+new cache variants; coordinate material changes.
 Coordinate any transition from a shared target. Do not clean another agent's
 build artifacts, replace its running
 executable, or stop its processes without coordinating first. Runtime captures,
@@ -104,7 +114,8 @@ Respect explicit pauses, cancellations, approval requests, and usage limits.
 Agents are authorized to message the coordinator and relevant peer game agents
 for this project coordination. Keep background coordination quiet while work is
 active or unchanged, and involve the user when a decision or blocker needs them.
-The user prefers roughly one coordination message per five minutes on average.
+The user now prefers Coordinator to give meaningful progress about once a minute
+while actively working. Workers still batch milestones rather than reporting each wait.
 Batch meaningful updates, avoid repetitive progress chatter and peer messages,
 and let active agents work without repeated check-ins.
 

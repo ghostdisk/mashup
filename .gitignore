@@ -1,6 +1,8 @@
 /target
 /tools/capped-rustc.exe
 /tools/capped-rustc.pdb
+/tools/capped-rustc-v2.exe
+/tools/capped-rustc-v2.pdb
 
 # Player-owned source files and converted content must stay local.
 /assets/imported/

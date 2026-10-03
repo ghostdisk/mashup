@@ -74,16 +74,18 @@ preserve peers' entries during rebase and avoid wholesale rewrites. Do not wait
 for a complete central specification to implement a useful feature.
 
 Use `& D:\Mashup\tools\build.ps1 build --locked --bin <owned-binary>` for every
-build. It limits execution to eight shared logical CPUs at BelowNormal priority,
-two Cargo jobs and one build across all agents. No formatters, linters or tests.
+build. It allows twelve Cargo jobs on physical cores minus two (six physical /
+twelve logical CPUs here) at Normal priority, with one gated build across agents.
+Dependencies use the shared cache; workspace-wrapper paths partition application
+crates and final executable targets remain private. No formatters, linters or tests.
 Source/research work runs in parallel while builds queue automatically. Do not
 foreground game windows, grab the mouse, clean shared artifacts or duplicate
 large full-world imports. Allocate heavy conversions deliberately and release
 temporary resources when finished.
 
 Report meaningful contracts, checkpoints and blockers in batches. Avoid repeated
-peer messages and per-build updates; the user prefers about one coordination
-message per five minutes. Coordinator may create another Luna worker/worktree
+peer messages and per-build updates. Coordinator gives meaningful progress about
+once a minute during active work, per the user's updated preference. It may create another Luna worker/worktree
 when a distinct new task merits it, rather than overloading or micromanaging
 existing workers. Respect explicit pauses and pending user decisions.
 
@@ -106,4 +108,4 @@ thread listings and update this register as needed.
 | VR Controls | `client-new-thread:a6ae5ae7-1afc-477d-9ed1-90eadc9fe0ed` | `01a102e1-c84f-7ea3-8245-775854233bce` |
 | GTA Assets | `client-new-thread:d2557c05-1d46-4c84-85da-2bda3f0870de` | `01a102e1-d6c4-7cc2-9497-a3031b3be758` |
 | World Presentation | `client-new-thread:249cca3e-0f04-49bd-856b-930e38f4fb65` | `01a1030f-a010-75f3-b8a2-d6a6b67f5fc8` |
-| Mashup Demo | Creation pending | Pending app setup |
+| Mashup Demo | `client-new-thread:f11c7d15-41eb-49a0-8b9b-06f48d63332c` | Pending app setup |

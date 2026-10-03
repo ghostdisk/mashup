@@ -1,4 +1,7 @@
 [build]
-jobs = 2
-# Resolve separately in each worktree; no shared executable or library cache.
-rustc-wrapper = "tools/capped-rustc.exe"
+jobs = 12
+# The helper shares dependency intermediates, with unique workspace-wrapper
+# paths partitioning application crates. Final outputs stay worktree-local.
+build-dir = "user_data/build-cache"
+rustc-wrapper = "tools/capped-rustc-v2.exe"
+rustc-workspace-wrapper = "target/mashup-build/workspace-rustc.exe"
