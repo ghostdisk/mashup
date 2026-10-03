@@ -116,6 +116,32 @@ pub fn accelerate(
     }
 }
 
+/// GoldSrc clips each velocity component, then snaps values below 0.1 source u/s.
+pub fn clip_velocity(velocity: Vec3, normal: Vec3, overbounce: f32) -> Vec3 {
+    let mut clipped = velocity - normal * (velocity.dot(normal) * overbounce);
+    for axis in 0..3 {
+        if clipped[axis].abs() < 0.1 * SOURCE_UNIT {
+            clipped[axis] = 0.0;
+        }
+    }
+    clipped
+}
+
+fn categorize_ground(state: &mut MovementState, world: &impl CollisionWorld) {
+    let ground = world.trace(
+        state.position,
+        state.position - Vec3::Y * 2.0 * SOURCE_UNIT,
+        state.hull(),
+    );
+    state.grounded = state.velocity.y <= 180.0 * SOURCE_UNIT
+        && ground.fraction < 1.0
+        && ground.normal.y >= 0.7
+        && !ground.start_solid;
+    if state.grounded {
+        state.position = ground.end;
+    }
+}
+
 fn slide(
     world: &impl CollisionWorld,
     position: Vec3,
@@ -148,15 +174,15 @@ fn slide(
         let incoming = velocity;
         let mut clipped = None;
         for normal in &planes {
-            let candidate = incoming - *normal * incoming.dot(*normal);
-            if planes.iter().all(|other| candidate.dot(*other) >= -0.00001) {
+            let candidate = clip_velocity(incoming, *normal, 1.0);
+            if planes.iter().all(|other| candidate.dot(*other) >= 0.0) {
                 clipped = Some(candidate);
                 break;
             }
         }
         velocity = clipped.unwrap_or_else(|| {
             if planes.len() == 2 {
-                let crease = planes[0].cross(planes[1]).normalize_or_zero();
+                let crease = planes[0].cross(planes[1]);
                 crease * incoming.dot(crease)
             } else {
                 Vec3::ZERO
@@ -182,6 +208,9 @@ pub fn step(
         return;
     }
     state.stamina_seconds = (state.stamina_seconds - dt).max(0.0);
+    // The previous tick's grounded flag is stale after spawning or leaving an edge.
+    // Categorize before ducking so grounded commands use the timed hull transition.
+    categorize_ground(state, world);
     if command.crouch && !state.crouched {
         state.duck_elapsed += dt;
         let fraction = (state.duck_elapsed / config.duck_transition_seconds.max(dt)).min(1.0);
@@ -220,17 +249,8 @@ pub fn step(
         state.view_offset = 17.0 * SOURCE_UNIT;
     }
     let hull = state.hull();
-    let ground = world.trace(
-        state.position,
-        state.position - Vec3::Y * 2.0 * SOURCE_UNIT,
-        hull,
-    );
-    state.grounded = state.velocity.y <= 180.0 * SOURCE_UNIT
-        && ground.fraction < 1.0
-        && ground.normal.y >= 0.7
-        && !ground.start_solid;
+    categorize_ground(state, world);
     if state.grounded {
-        state.position = ground.end;
         state.velocity.y = 0.0;
     }
     state.velocity.y -= config.gravity * dt * 0.5;
@@ -326,18 +346,9 @@ pub fn step(
             }
         }
     }
-    let ground = world.trace(
-        state.position,
-        state.position - Vec3::Y * 2.0 * SOURCE_UNIT,
-        hull,
-    );
-    state.grounded = state.velocity.y <= 180.0 * SOURCE_UNIT
-        && ground.fraction < 1.0
-        && ground.normal.y >= 0.7
-        && !ground.start_solid;
+    categorize_ground(state, world);
     state.velocity.y -= config.gravity * dt * 0.5;
     if state.grounded {
-        state.position = ground.end;
         state.velocity.y = 0.0;
     }
 }
@@ -443,5 +454,42 @@ mod tests {
             0.01,
         );
         assert!((body.position.y - 36.0 * SOURCE_UNIT).abs() < 1e-5);
+    }
+
+    #[test]
+    fn first_grounded_command_ducks_over_time_but_air_duck_is_immediate() {
+        let config = MovementConfig::counter_strike();
+        let command = PlayerCommand {
+            crouch: true,
+            ..default()
+        };
+        let mut grounded = body();
+        step(&mut grounded, &command, &config, &FloorWorld, 0.01);
+        assert!(grounded.grounded);
+        assert!(!grounded.crouched);
+        assert!(grounded.view_offset < 17.0 * SOURCE_UNIT);
+        for _ in 0..40 {
+            step(&mut grounded, &command, &config, &FloorWorld, 0.01);
+        }
+        assert!(grounded.crouched);
+        assert!((grounded.position.y - 18.0 * SOURCE_UNIT).abs() < 1e-5);
+
+        let mut airborne = MovementState::new(Vec3::Y * 5.0);
+        step(&mut airborne, &command, &config, &FloorWorld, 0.01);
+        assert!(airborne.crouched);
+        assert!(!airborne.grounded);
+    }
+
+    #[test]
+    fn clipping_snaps_small_components_without_damping_tangential_speed() {
+        let incoming = Vec3::new(0.05, -20.0, 30.0) * SOURCE_UNIT;
+        let clipped = clip_velocity(incoming, Vec3::Y, 1.0);
+        assert_eq!(clipped.x, 0.0);
+        assert_eq!(clipped.y, 0.0);
+        assert_eq!(clipped.z, incoming.z);
+        assert_eq!(
+            clip_velocity(Vec3::X * 0.1 * SOURCE_UNIT, Vec3::Y, 1.0).x,
+            0.1 * SOURCE_UNIT
+        );
     }
 }

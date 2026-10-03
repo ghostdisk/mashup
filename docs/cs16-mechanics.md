@@ -65,6 +65,9 @@ no SDK or recovered source implementation is included.
 | Jump impulse 268.32816, half-step gravity correction | `cs.so` `PM_Jump`, `001372a0` | Split gravity integration |
 | CS jump stamina timer about 1.3157895 s, penalty 0.19 per remaining second | `cs.so` `PM_Jump`, `PM_WalkMove` | Reduced repeated-jump impulse and grounded velocity |
 | Ground duck completes after 0.4 s; airborne duck switches immediately | `cs.so` `PM_Duck`, `001361f0` | Smooth eye transition and hull change |
+| Ground contact is categorized before ducking | `cs.so` `PM_PlayerMove` and `PM_Duck` | First grounded command uses the timed transition, including immediately after spawn |
+| Clipped velocity components below 0.1 source units/s become zero | `cs.so` `PM_ClipVelocity`, `00133a00` | Component-wise threshold after plane projection |
+| Walk modifier is capped at 0.52 after command speed normalization | `client.so` `CL_CreateMove`, `000d1b40`; offline `cl_movespeedkey` | CS walk scale 0.52 |
 | AK magazine 30, cycle 0.0955 s, reload 2.45 s | `cs.so` AK primary attack/reload | Generic weapon timing |
 | Viewmodel sequences idle1, reload, draw, shoot1/2/3 | Imported `v_ak47.mdl` catalog | Skeletal playback, firing restarts the selected clip |
 
@@ -87,10 +90,32 @@ Captures use the engine's native `snapshot` command and convert its BMP to PNG;
 they never read desktop pixels. Pass `-ConsoleOpen` to `capture` if its console is
 already open. Bevy screenshots likewise come directly from its render target.
 
+`tools/reference-state.ps1` reads movement state from the recorded offline server
+process using read-only process access. It verifies the PID/start time, installed
+module path and SHA-256 before applying the observed Windows layout. It refuses
+unrecognized binaries. For the inspected `mp.dll`, `GetEntityAPI` at `1005fe30`
+provides the movement callback at `100a8eb0`; that callback stores its state pointer
+at RVA `0x132704`. Runtime module relocation is resolved from the loaded module.
+Positions, velocities and commands are recorded in the original XYZ/source units.
+`movement_time_raw` preserves the native time field without assigning it units.
+
+```powershell
+./tools/reference-state.ps1 -Samples 200 -IntervalMs 10
+```
+
+The local reference standing origin at the first CT start is
+`(448, 2464, -91.96875)`, with view offset `(0, 0, 17)` and zero velocity. The
+imported collision uses the corresponding 1/32-source-unit contact margin.
+These are live polling observations: reads can repeat, skip commands or catch a
+command in progress. A command-change flag detects some races; it does not make
+the sample atomic. They support investigation, but do not establish full trajectory
+equivalence. Matched command-boundary capture remains necessary for that claim.
+
 ## Validation and remaining fidelity
 
 Synthetic tests exercise acceleration, normalized diagonal commands, held-jump
-latching, crouch feet preservation, hull contact and magazine/reload cadence.
+latching, grounded/airborne crouch transitions from the first command, crouch feet
+preservation, component-wise velocity clipping, hull contact and magazine/reload cadence.
 Local integration checks exercise every Dust2 player start, movement, jumping,
 ducking, and required viewmodel sequences without bundling fixtures:
 
