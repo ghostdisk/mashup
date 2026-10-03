@@ -21,6 +21,7 @@ programmatic lookup. The `mashup-assets` development inspector prints a TSV list
 and supports `--search`, `--game`, and `--kind` filters. For example:
 
 ```powershell
+$env:CARGO_TARGET_DIR = Join-Path (Get-Location) 'target'
 & D:\Mashup\tools\build.ps1 build --locked --bin mashup-assets
 .\target\debug\mashup-assets.exe --game gtasa --kind model
 ```
