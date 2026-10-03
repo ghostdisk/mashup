@@ -9,7 +9,8 @@ $ErrorActionPreference = 'Stop'
 $session = Get-Content user_data/reference/session.json -Raw | ConvertFrom-Json
 if (!$session.lan) { throw 'The recorded reference session must be offline/LAN.' }
 $process = Get-Process -Id $session.pid
-if ($process.ProcessName -ne 'hl' -or [Math]::Abs(($process.StartTime.ToUniversalTime()-[DateTime]::Parse($session.started).ToUniversalTime()).TotalSeconds) -gt 3) {
+$recordedStart = ([DateTimeOffset]$session.started).UtcDateTime
+if ($process.ProcessName -ne 'hl' -or [Math]::Abs(($process.StartTime.ToUniversalTime()-$recordedStart).TotalSeconds) -gt 3) {
     throw 'Recorded PID no longer belongs to the reference session.'
 }
 $module = $process.Modules | Where-Object { $_.ModuleName -eq 'mp.dll' } | Select-Object -First 1

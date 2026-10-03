@@ -53,7 +53,8 @@ developer 1
 }
 $session = Get-Content user_data/reference/session.json -Raw | ConvertFrom-Json
 $process = Get-Process -Id $session.pid
-if ($process.ProcessName -ne 'hl' -or [Math]::Abs(($process.StartTime.ToUniversalTime()-[DateTime]::Parse($session.started).ToUniversalTime()).TotalSeconds) -gt 3) { throw 'Recorded PID no longer belongs to this reference session.' }
+$recordedStart = ([DateTimeOffset]$session.started).UtcDateTime
+if ($process.ProcessName -ne 'hl' -or [Math]::Abs(($process.StartTime.ToUniversalTime()-$recordedStart).TotalSeconds) -gt 3) { throw 'Recorded PID no longer belongs to this reference session.' }
 if ($Action -eq 'stop') {
     $process.CloseMainWindow() | Out-Null
     if ($session.created_configuration) { Remove-Item -LiteralPath (Join-Path $session.installation 'cstrike/mashup_reference.cfg') }
