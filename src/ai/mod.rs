@@ -23,7 +23,7 @@ impl AiHealth { pub fn new(health: f32) -> Self { Self { current: health, maximu
 #[derive(Component)] pub struct AiActor;
 
 fn think<W: Resource + CollisionWorld>(world: Res<W>, time: Res<Time<Fixed>>, targets: Query<(Entity, &MovementState), With<AiTarget>>, mut actors: Query<(&MovementState, &AiProfile, &mut AiBrain, &mut AiState, &mut PlayerCommand, &mut AiHealth), With<AiActor>>, mut target_health: Query<&mut AiHealth, (With<AiTarget>, Without<AiActor>)>) {
-    for (body, profile, mut brain, mut state, mut command, mut health) in &mut actors {
+    for (body, profile, mut brain, mut state, mut command, health) in &mut actors {
         brain.cooldown = (brain.cooldown - time.delta_secs()).max(0.0);
         let nearest = targets.iter().filter_map(|(entity, target)| { let delta = target.position - body.position; (delta.length() <= profile.perception_range).then_some((entity, target, delta)) }).min_by(|a,b| a.2.length_squared().total_cmp(&b.2.length_squared()));
         *command = PlayerCommand::default(); brain.target = None;
