@@ -5,6 +5,7 @@ mod collision;
 mod placement;
 mod renderware;
 mod texture;
+mod water;
 pub mod vehicles;
 
 use crate::maps::{self, Bounds, Result};
@@ -114,11 +115,21 @@ pub fn import(options: &ImportOptions) -> Result<PathBuf> {
         records.push(json!({"id":identity,"model":instance.model.to_string(),"translation":translation.to_array(),"rotation":rotation.to_array(),"source":{"ipl":instance.source,"index":instance.index,"interior_flags":instance.interior,"lod_index":instance.lod,"lod_instance":lod_target}}));imported_count+=1;
     }
     if imported_count==0 {return Err("no map instances were imported".into());}
+    let placement_models=model_catalog.len();let water=water::export(options)?;let mut water_chunks:BTreeMap<(i32,i32),(Bounds,Vec<Value>)>=BTreeMap::new();
+    for (water_bounds,instance) in &water.instances {
+        let translation=maps::vec3(&instance["translation"])?;
+        let key=((translation.x/chunk_size).floor() as i32,(translation.z/chunk_size).floor() as i32);
+        // Large ocean polygons must not expand a terrain chunk's residency bounds.
+        let (chunk_bounds,records)=water_chunks.entry(key).or_insert_with(||(Bounds::empty(),Vec::new()));chunk_bounds.include(water_bounds.min);chunk_bounds.include(water_bounds.max);bounds.include(water_bounds.min);bounds.include(water_bounds.max);records.push(instance.clone());
+    }
+    model_catalog.extend(water.models);
     let mut chunk_catalog=Vec::new();
     for ((x,z),(bounds,instances)) in chunks {let id=format!("{x}_{z}");let path=format!("chunks/{id}.json");maps::write_json(&root.join(&path),&json!({"version":1,"id":id,"instances":instances}))?;chunk_catalog.push(json!({"id":id,"grid":[x,z],"bounds":bounds.json(),"payload":path}));}
+    for ((x,z),(bounds,instances)) in water_chunks {let id=format!("{x}_{z}_water");let path=format!("chunks/{id}.json");maps::write_json(&root.join(&path),&json!({"version":1,"id":id,"instances":instances}))?;chunk_catalog.push(json!({"id":id,"grid":[x,z],"bounds":bounds.json(),"payload":path}));}
     let report=json!({"source_instances":source_count,"imported_instances":imported_count,"detailed_instances":nonlod_count,"collision_instances":collision_instances,"global_area_instances_selected":global_area_count,"interior_instances_excluded":interior_count,"outside_region_excluded":outside_count,"lod_references":lod_reference_count,"resolved_lod_references":resolved_lod_count,"excluded_lod_targets":excluded_lod_count,"models":model_catalog.len(),"chunks":chunk_catalog.len(),"warnings":warnings,"coverage":if options.radius.is_none(){"main exterior and global-area placements; fidelity gaps listed"}else{"partial region"},"remaining":["source LOD postprocessing/distance policy","water and procedural vegetation","time-of-day materials and effects","interior selection"]});
+    let mut report=report;report["placement_models"]=json!(placement_models);report["water"]=water.report;report["static_instances"]=json!(imported_count+water.instances.len());report["remaining"]=json!(["source LOD postprocessing/distance policy","animated water and swimming","procedural vegetation","time-of-day materials and effects","interior selection"]);
     maps::write_json(&root.join("import-report.json"),&report)?;
-    let manifest=json!({"format":"mashup-world","version":1,"id":"gtasa:main","required_capabilities":["static-mesh-v1","instances-v1","spatial-chunks-v1","collision-primitives-v1"],"coordinates":{"units":"meters","source_units_scale":1.0,"source_basis":"(x,y,z) -> (x,z,-y)","source_rotation":"IPL conjugate, basis-conjugated","runtime_units":"1 unit = 1 meter"},"bounds":bounds.json(),"chunk_size":chunk_size,"models":model_catalog,"chunks":chunk_catalog,"spawns":[{"id":"grove-street","position":renderware::basis(options.center+Vec3::Z*3.0).to_array(),"yaw":1.5707964}],"provenance":{"game":"gtasa","installation":install.to_string_lossy(),"importer":"mashup-gtasa-v1","source":"data/gta.dat plus IMG and loose COL","region_radius":options.radius},"report":"import-report.json"});
+    let manifest=json!({"format":"mashup-world","version":1,"id":"gtasa:main","required_capabilities":["static-mesh-v1","instances-v1","spatial-chunks-v1","collision-primitives-v1"],"coordinates":{"units":"meters","source_units_scale":1.0,"source_basis":"(x,y,z) -> (x,z,-y)","source_rotation":"IPL conjugate, basis-conjugated","runtime_units":"1 unit = 1 meter"},"bounds":bounds.json(),"chunk_size":chunk_size,"models":model_catalog,"chunks":chunk_catalog,"spawns":[{"id":"grove-street","position":renderware::basis(options.center+Vec3::Z*3.0).to_array(),"yaw":1.5707964}],"provenance":{"game":"gtasa","installation":install.to_string_lossy(),"importer":"mashup-gtasa-v1","source":"data/gta.dat plus IMG and loose COL","region_radius":options.radius},"extensions":{"gtasa":{"water":"water.json"}},"report":"import-report.json"});
     let path=root.join("world.mashup.json");maps::write_json(&path,&manifest)?;
-    println!("Imported {imported_count} instances, {} models, {} chunks, {} warnings -> {}",model_catalog.len(),chunk_catalog.len(),report["warnings"].as_array().unwrap().len(),path.display());Ok(path)
+    println!("Imported {imported_count} IPL instances, {} water surfaces, {} models, {} chunks, {} warnings -> {}",water.instances.len(),model_catalog.len(),chunk_catalog.len(),report["warnings"].as_array().unwrap().len(),path.display());Ok(path)
 }

@@ -138,8 +138,20 @@ Initial water-loader research also located `00724d10` through the installed
 floats each and an optional integer for quad records, a three-vertex fallback,
 and source texture names `waterclear256`, `seabd32` and `waterwake` from the
 `particle` dictionary. The meanings of the four vertex parameters after XYZ,
-surface flags and tessellation still require investigation. No water runtime or
-swimming mechanics have been implemented from this initial observation.
+surface tessellation still require investigation. Follow-up decompilation of
+`00721e10` and `00721c60` confirms quad/triangle registration, with source flag
+bit 0 inverted into internal disable flag 2 and bit 1 mapped to internal flag 4.
+`0071f7c0` marks render candidates only when disable flag 2 is clear, and separates
+height bands at 950 meters. `0071f9f0` stores integer XY, deduplicates XYZ and
+pins the +/-3000 boundary vertices to level 0. `00723700` emits the two texture
+layers at 0.08 and 0.04 repeats per meter; offsets, alpha and color depend on
+runtime state. `00728350` updates that state using weather colors and timestep.
+
+`importers/water.rs` preserves source water records and emits static base geometry
+for ordinary-height render candidates through the existing shared mesh format.
+It uses only the first texture layer and an explicitly recorded fixed midday
+source color. This is initial surface coverage, not the dynamic source renderer
+or swimming mechanics. Runtime inspection remains pending the first dev build.
 
 Decompiler output loses some x87 intrinsic arguments and sometimes infers
 incorrect types or return values. For example, `0054c500` appears as `void` in

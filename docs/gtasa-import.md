@@ -165,7 +165,24 @@ LOD placements are retained in the package, but the initial runtime renders
 detailed models and suppresses models recognized by their LOD names. Exact
 source LOD linking and distance policy remain to be implemented.
 
-Water, procedural vegetation, day/night vertex effects, special material
+The importer now includes static base water geometry from `data/water.dat`,
+using the existing shared mesh/model/chunk records without solid collision.
+Water uses distinct chunk identities so a large ocean polygon does not expand
+the residency bounds of a chunk containing distant terrain objects.
+The installed source has 301 quads and six triangles. `water.json` preserves
+all source vertices, their four parameters after XYZ, flags and source line
+identities; the optional `extensions.gtasa.water` manifest entry references it.
+Source bit 0 controls render candidacy. The normal-world pass excludes the
+source renderer's height band above 950 meters and reports those exclusions.
+Region selection uses surface bounds so crossing water is retained.
+The source `particle.txd` texture `waterclear256` supplies the first static
+texture layer at the observed 0.08 repeats per meter. The inspection color is
+the installed EXTRASUNNY_LA Midday WaterRGBA from `timecyc.dat`, not interpolated
+weather. The current shared material is opaque/masked; source water blending,
+second texture layer, waves, reflection, flow, and swimming remain open.
+This first water addition still awaits a refreshed import and runtime review.
+
+Procedural vegetation, day/night vertex effects, special material
 pipelines, source shadow meshes, time-controlled objects and interiors are not
 implemented by this first world checkpoint. Collision is source geometry, not
 render-mesh approximation; triangle surfaces have no inferred closed volume.
