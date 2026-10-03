@@ -6,6 +6,7 @@ mod placement;
 mod renderware;
 mod texture;
 mod water;
+pub mod pedestrians;
 pub mod vehicles;
 
 use crate::maps::{self, Bounds, Result};

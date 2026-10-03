@@ -73,6 +73,18 @@ pub fn import_car(options:&ImportOptions,requested:&str)->Result<PathBuf> {
         meshes.push(json!({"name":format!("{requested}:geometry:{geometry}"),"primitives":primitives}));
     }
     let basis=Mat4::from_quat(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2));let inverse=basis.inverse();
+    let mut atomics:Vec<(usize,usize,u32,Option<usize>)>=scene.atomics.iter().map(|a|(a.frame,a.geometry,a.flags,None)).collect();
+    // The PC game retains one rendered wheel prototype and attaches its geometry to
+    // otherwise empty wheel dummies while preprocessing vehicle component records.
+    if let Some(prototype)=scene.atomics.iter().find(|a|scene.frames[a.frame].name.eq_ignore_ascii_case("wheel")) {
+        for target in ["wheel_lf_dummy","wheel_lb_dummy","wheel_rb_dummy"] {
+            if let Some(frame)=scene.frames.iter().position(|f|f.name.eq_ignore_ascii_case(target)) {
+                let already_rendered=scene.atomics.iter().any(|a|a.frame==frame || scene.frames[a.frame].parent==frame as i32&&scene.frames[a.frame].name.eq_ignore_ascii_case("wheel"));
+                if !already_rendered {atomics.push((frame,prototype.geometry,prototype.flags,Some(prototype.frame)));}
+            }
+        }
+        warnings.push("source wheel prototype cloned into empty wheel dummy frames, following vehicle preprocessing at gta_sa.exe 004d30d0".into());
+    }
     let mut nodes=Vec::new();let mut parts=Vec::new();let mut roots=Vec::new();let mut bounds=Bounds::empty();
     for (index,frame) in scene.frames.iter().enumerate() {
         let matrix=basis*frame.local*inverse;let world=basis*frame.world*inverse;
@@ -80,17 +92,17 @@ pub fn import_car(options:&ImportOptions,requested:&str)->Result<PathBuf> {
         if frame.parent<0{roots.push(index);}else{nodes[frame.parent as usize]["children"].as_array_mut().unwrap().push(json!(index));}
         parts.push(json!({"frame":index,"name":frame.name,"node":index,"parent":frame.parent,"role":role(&frame.name),"local_matrix":matrix.to_cols_array(),"world_matrix":world.to_cols_array()}));
     }
-    for (index,atomic) in scene.atomics.iter().enumerate() {
-        let name=&scene.frames[atomic.frame].name;let default_visible=!name.ends_with("_dam")&&!name.ends_with("_vlo")&&atomic.flags&4!=0;
-        let node=nodes.len();nodes.push(json!({"name":format!("{name}:atomic:{index}"),"mesh":atomic.geometry,"extras":{"gtasa":{"atomic":index,"source_frame":atomic.frame,"flags":atomic.flags,"default_visible":default_visible}}}));nodes[atomic.frame]["children"].as_array_mut().unwrap().push(json!(node));
-        if default_visible {for vertex in &scene.geometries[atomic.geometry].0.vertices {bounds.include(renderware::basis(scene.frames[atomic.frame].world.transform_point3(Vec3::from_array(vertex.position))));}}
-        if parts[atomic.frame]["atomics"].is_null(){parts[atomic.frame]["atomics"]=json!([]);}
-        parts[atomic.frame]["atomics"].as_array_mut().unwrap().push(json!(node));
+    for (index,(frame,geometry,flags,cloned_from)) in atomics.iter().enumerate() {
+        let name=&scene.frames[*frame].name;let default_visible=!name.ends_with("_dam")&&!name.ends_with("_vlo")&&flags&4!=0;
+        let node=nodes.len();nodes.push(json!({"name":format!("{name}:atomic:{index}"),"mesh":geometry,"extras":{"gtasa":{"atomic":index,"source_frame":frame,"flags":flags,"default_visible":default_visible,"prototype_source_frame":cloned_from}}}));nodes[*frame]["children"].as_array_mut().unwrap().push(json!(node));
+        if default_visible {for vertex in &scene.geometries[*geometry].0.vertices {bounds.include(renderware::basis(scene.frames[*frame].world.transform_point3(Vec3::from_array(vertex.position))));}}
+        if parts[*frame]["atomics"].is_null(){parts[*frame]["atomics"]=json!([]);}
+        parts[*frame]["atomics"].as_array_mut().unwrap().push(json!(node));
     }
     for node in &mut nodes {if node["children"].as_array().is_some_and(Vec::is_empty){node.as_object_mut().unwrap().remove("children");}}
     let metadata=json!({"format":"gtasa-vehicle-model","version":1,"id":format!("gtasa:vehicle:{}",definition[0]),"model":requested,"model_id":definition[0].parse::<u32>().map_err(|_|"invalid vehicle model ID")?,"glb":"vehicle.glb","coordinates":{"runtime_units":"1 unit = 1 meter","source_units_scale":1.0,"source_basis":"(x,y,z) -> (x,z,-y)","forward":"-Z","up":"+Y"},"bounds":bounds.json(),"frames":parts,"source":{"vehicles_ide":definition,"dff":format!("models/gta3.img:{requested}.dff"),"generic_txd":"models/generic/vehicle.txd"},"warnings":warnings,"remaining":["dynamic paint/number plates","vehicle-specific effects","runtime damage selection and extras"]});
     let document=json!({"asset":{"version":"2.0","generator":"Mashup original GTA vehicle importer"},"scene":0,"scenes":[{"name":requested,"nodes":roots}],"nodes":nodes,"meshes":meshes,"materials":materials,"images":images,"textures":texture_descriptors,"samplers":samplers,"buffers":[{"byteLength":buffer.bytes.len()}],"bufferViews":buffer.views,"accessors":buffer.accessors,"extras":{"gtasa_vehicle":metadata}});
     let path=root.join("vehicle.glb");fs::write(&path,pack(document,buffer.bytes)?).map_err(|e|e.to_string())?;maps::write_json(&root.join("vehicle.json"),&metadata)?;
     maps::write_json(&root.join("vehicle.import.json"),&json!({"kind":"vehicle","preview_ground_offset_meters":-bounds.min.y,"source":"gtasa","vehicle_metadata":"vehicle.json","animations":[]}))?;
-    println!("Imported {requested}: {} frames, {} atomics, {} geometries -> {}",scene.frames.len(),scene.atomics.len(),scene.geometries.len(),path.display());Ok(path)
+    println!("Imported {requested}: {} frames, {} atomics, {} geometries -> {}",scene.frames.len(),atomics.len(),scene.geometries.len(),path.display());Ok(path)
 }

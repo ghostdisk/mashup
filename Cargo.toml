@@ -38,6 +38,10 @@ name = "mashup-vehicles"
 path = "src/bin/mashup-vehicles.rs"
 
 [[bin]]
+name = "mashup-gtasa-assets"
+path = "src/bin/mashup-gtasa-assets.rs"
+
+[[bin]]
 name = "mashup-gtasa-cstrike"
 path = "src/bin/mashup-gtasa-cstrike.rs"
 
