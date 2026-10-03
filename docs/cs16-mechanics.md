@@ -22,6 +22,11 @@ Screenshots and movement telemetry live under ignored `user_data/`.
 The map currently needs a GoldSrc collision catalog; other map backends can implement
 `CollisionWorld` without changing the movement solver or controller.
 
+Maps imported before collision support need to be reimported with the current
+`mashup-import` using the command above. `--play` checks the map catalog, player
+spawn, and converted map/viewmodel files before opening a window. Missing or
+outdated imports produce a terminal error with import instructions.
+
 `cargo run --locked -- --play --smoke-test` executes a 13-second deterministic
 command sequence: running, air strafing, three jump attempts, a burst, reload,
 and crouching. It captures the rendered frame and writes a movement trace before

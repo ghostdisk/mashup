@@ -3,7 +3,7 @@ use mashup::{
     MashupPlugin,
     glue::{
         asset_viewer::{AssetViewerPlugin, ViewerAssets, imported_assets},
-        first_person::{FirstPersonGamePlugin, FpsOptions},
+        first_person::{FirstPersonGamePlugin, FpsMap, FpsOptions},
         sandbox::SandboxPlugin,
     },
 };
@@ -77,6 +77,22 @@ fn main() {
     if files.is_empty() && !sandbox {
         files = imported_assets(&asset_root);
     }
+    let fps = if play {
+        let options = FpsOptions {
+            asset_root: asset_root.clone(),
+            map,
+            view_model: weapon,
+            half_life,
+            smoke_test,
+        };
+        let map = FpsMap::load(&options).unwrap_or_else(|error| {
+            eprintln!("Cannot start --play: {error}");
+            std::process::exit(1);
+        });
+        Some((options, map))
+    } else {
+        None
+    };
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -94,15 +110,10 @@ fn main() {
             }),
     )
     .add_plugins(MashupPlugin);
-    if play {
-        app.insert_resource(FpsOptions {
-            asset_root,
-            map,
-            view_model: weapon,
-            half_life,
-            smoke_test,
-        })
-        .add_plugins(FirstPersonGamePlugin);
+    if let Some((options, map)) = fps {
+        app.insert_resource(options)
+            .insert_resource(map)
+            .add_plugins(FirstPersonGamePlugin);
     } else if files.is_empty() || sandbox {
         app.add_plugins(SandboxPlugin);
     } else {

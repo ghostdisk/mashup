@@ -31,6 +31,88 @@ pub struct FpsOptions {
     pub half_life: bool,
     pub smoke_test: bool,
 }
+
+/// Validated play assets, loaded before creating the renderer or window.
+#[derive(Resource)]
+pub struct FpsMap {
+    collision: BspCollision,
+    spawn: Vec3,
+    yaw: f32,
+}
+
+impl FpsMap {
+    pub fn load(options: &FpsOptions) -> Result<Self, String> {
+        let map_path = options.asset_root.join(&options.map);
+        let path = map_path.with_extension("import.json");
+        let bytes = fs::read(&path).map_err(|e| {
+            format!(
+                "{}: {e}. Import the BSP with mashup-import; see docs/cs16-mechanics.md.",
+                path.display()
+            )
+        })?;
+        let manifest = serde_json::from_slice(&bytes)
+            .map_err(|e| format!("{}: invalid map manifest: {e}", path.display()))?;
+        let map = Self::from_manifest(&manifest).map_err(|e| {
+            format!(
+                "{}: {e}. See docs/cs16-mechanics.md for the import command.",
+                path.display()
+            )
+        })?;
+        for (path, source) in [
+            (map_path, "BSP map"),
+            (options.asset_root.join(&options.view_model), "weapon MDL"),
+        ] {
+            if !path.is_file() {
+                return Err(format!(
+                    "{}: converted asset is missing. Import the {source} with mashup-import; see docs/cs16-mechanics.md.",
+                    path.display()
+                ));
+            }
+        }
+        Ok(map)
+    }
+
+    fn from_manifest(manifest: &serde_json::Value) -> Result<Self, String> {
+        let collision = BspCollision::from_manifest(manifest)?;
+        let spawn_data = manifest["preview_spawn_meters"]
+            .as_array()
+            .filter(|values| values.len() == 3)
+            .ok_or("missing or invalid player spawn")?;
+        let mut spawn = Vec3::ZERO;
+        for (axis, value) in spawn_data.iter().enumerate() {
+            spawn[axis] = value.as_f64().ok_or("invalid player spawn coordinate")? as f32;
+        }
+        if !spawn.is_finite() {
+            return Err("invalid player spawn coordinate".into());
+        }
+        let yaw = manifest["goldsrc"]["entities"]
+            .as_array()
+            .and_then(|entities| {
+                entities
+                    .iter()
+                    .find(|e| e["classname"] == "info_player_start")
+            })
+            .and_then(|e| {
+                e["angles"]
+                    .as_str()
+                    .and_then(|a| a.split_whitespace().nth(1))
+                    .or_else(|| e["angle"].as_str())
+            })
+            .and_then(|a| a.parse::<f32>().ok())
+            .filter(|a| a.is_finite())
+            .unwrap_or(0.0)
+            .to_radians();
+        if collision.trace(spawn, spawn, Hull::Standing).start_solid {
+            return Err("Player spawn is in solid geometry".into());
+        }
+        Ok(Self {
+            collision,
+            spawn,
+            yaw,
+        })
+    }
+}
+
 #[derive(Resource)]
 struct Session {
     spawn: Vec3,
@@ -105,45 +187,13 @@ impl Plugin for FirstPersonGamePlugin {
 fn setup(
     mut commands: Commands,
     options: Res<FpsOptions>,
+    map: Res<FpsMap>,
     server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let path = options
-        .asset_root
-        .join(&options.map)
-        .with_extension("import.json");
-    let manifest: serde_json::Value = serde_json::from_slice(
-        &fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}. Import a BSP first.", path.display())),
-    )
-    .expect("invalid map manifest");
-    let collision = BspCollision::from_manifest(&manifest).unwrap_or_else(|e| panic!("{e}"));
-    let spawn_data = manifest["preview_spawn_meters"]
-        .as_array()
-        .expect("missing player spawn");
-    let spawn = Vec3::new(
-        spawn_data[0].as_f64().unwrap() as f32,
-        spawn_data[1].as_f64().unwrap() as f32,
-        spawn_data[2].as_f64().unwrap() as f32,
-    );
-    let yaw = manifest["goldsrc"]["entities"]
-        .as_array()
-        .and_then(|entities| {
-            entities
-                .iter()
-                .find(|e| e["classname"] == "info_player_start")
-        })
-        .and_then(|e| {
-            e["angles"]
-                .as_str()
-                .and_then(|a| a.split_whitespace().nth(1))
-                .or_else(|| e["angle"].as_str())
-        })
-        .and_then(|a| a.parse::<f32>().ok())
-        .unwrap_or(0.0)
-        .to_radians();
-    let trace = collision.trace(spawn, spawn, Hull::Standing);
-    assert!(!trace.start_solid, "Player spawn is in solid geometry");
+    let spawn = map.spawn;
+    let yaw = map.yaw;
     commands.spawn((
         Name::new("Imported map"),
         WorldAssetRoot(server.load(format!("{}#Scene0", options.map))),
@@ -212,7 +262,7 @@ fn setup(
     for index in 0..3 {
         let center =
             spawn + front * (5.0 + index as f32 * 2.0) + Vec3::X * (index as f32 - 1.0) * 1.0;
-        if collision.trace(center, center, Hull::Point).start_solid {
+        if map.collision.trace(center, center, Hull::Point).start_solid {
             continue;
         }
         commands.spawn((
@@ -227,7 +277,6 @@ fn setup(
             Transform::from_translation(center),
         ));
     }
-    commands.insert_resource(collision);
     commands.spawn((
         Hud,
         Text::new("Loading AK-47…"),
@@ -346,7 +395,7 @@ fn attach_view_model(
 
 fn simulate(
     time: Res<Time<Fixed>>,
-    world: Res<BspCollision>,
+    world: Res<FpsMap>,
     options: Res<FpsOptions>,
     mut session: ResMut<Session>,
     mut bodies: Query<(
@@ -376,7 +425,13 @@ fn simulate(
             input.reload = tick == 720;
             input.crouch = (1050..1120).contains(&tick);
         }
-        movement::step(&mut body, &input, config, &*world, time.delta_secs());
+        movement::step(
+            &mut body,
+            &input,
+            config,
+            &world.collision,
+            time.delta_secs(),
+        );
         transform.translation = body.position;
         if session.ticks.is_multiple_of(10) {
             let tick = session.ticks;
@@ -410,7 +465,7 @@ fn ray_box(start: Vec3, direction: Vec3, center: Vec3, half: Vec3) -> Option<f32
 fn shoot(
     mut commands: Commands,
     time: Res<Time<Fixed>>,
-    world: Res<BspCollision>,
+    world: Res<FpsMap>,
     mut session: ResMut<Session>,
     mut bodies: Query<(&PlayerCommand, &MovementState, &mut WeaponState, &mut Ak47)>,
     mut targets: Query<(Entity, &mut PracticeTarget)>,
@@ -438,8 +493,11 @@ fn shoot(
                     let direction =
                         (rotation * Vec3::new(deviation.x, deviation.y, -1.0)).normalize();
                     let start = body.position + Vec3::Y * body.eye_height();
-                    let trace =
-                        world.trace(start, start + direction * 8192.0 * SOURCE_UNIT, Hull::Point);
+                    let trace = world.collision.trace(
+                        start,
+                        start + direction * 8192.0 * SOURCE_UNIT,
+                        Hull::Point,
+                    );
                     let mut nearest = (trace.end - start).length();
                     let mut hit = None;
                     for (entity, target) in &mut targets {
@@ -621,3 +679,4 @@ fn expire_impacts(
         }
     }
 }
+
