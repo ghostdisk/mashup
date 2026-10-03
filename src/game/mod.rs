@@ -4,3 +4,4 @@
 pub mod cstrike;
 pub mod gtasa;
 pub mod hl;
+pub mod lineage2;

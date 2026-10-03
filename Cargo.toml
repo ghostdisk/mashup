@@ -30,6 +30,10 @@ name = "mashup-traffic"
 path = "src/bin/mashup-traffic.rs"
 
 [[bin]]
+name = "mashup-lineage2"
+path = "src/bin/mashup-lineage2.rs"
+
+[[bin]]
 name = "mashup-gtasa-cstrike"
 path = "src/bin/mashup-gtasa-cstrike.rs"
 

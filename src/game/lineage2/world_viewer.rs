@@ -1,0 +1,34 @@
+//! Lightweight inspection controls around the shared streamed map runtime.
+use crate::{collision::{CollisionWorld,Hull},maps::{MapPackage,Result,vec3,collision::MeshCollisionWorld,runtime::{MapRuntime,MapRuntimePlugin,StreamingFocus,MapSystems}}};
+use bevy::{app::AppExit,input::mouse::AccumulatedMouseMotion,prelude::*,render::view::screenshot::{Screenshot,save_to_disk},window::{CursorOptions,CursorGrabMode,PrimaryWindow}};
+use std::{fs,path::PathBuf};
+
+#[derive(Resource)] pub struct ViewerOptions {pub output:PathBuf,pub capture_after:Option<f32>}
+#[derive(Component)] struct WorldCamera {yaw:f32,pitch:f32,grabbed:bool,collision:bool,hull:Hull,spawn:Vec3}
+#[derive(Component)] struct WorldHud;
+#[derive(Resource,Default)] struct Inspection {message:String,hit:Option<Vec3>,elapsed:f32,captured:bool}
+pub fn spawn(package:&MapPackage)->Result<Vec3>{vec3(&package.manifest["spawns"][0]["position"])}
+
+pub struct Lineage2WorldViewerPlugin;
+impl Plugin for Lineage2WorldViewerPlugin {fn build(&self,app:&mut App){app.add_plugins(MapRuntimePlugin).init_resource::<Inspection>().insert_resource(ClearColor(Color::srgb(0.49,0.68,0.84))).insert_resource(GlobalAmbientLight{brightness:650.0,..default()}).add_systems(Startup,setup).add_systems(Update,controls.before(MapSystems::Stream)).add_systems(Update,(inspect,hud).chain().after(MapSystems::Stream));}}
+fn setup(mut commands:Commands,package:Res<MapPackage>,focus:Res<StreamingFocus>){let pos=focus.position+Vec3::Y*35.0;let yaw=package.manifest["spawns"][0]["yaw"].as_f64().unwrap_or(0.0) as f32;let pitch=-0.3;
+    commands.spawn((WorldCamera{yaw,pitch,grabbed:false,collision:false,hull:Hull::Standing,spawn:pos},Camera3d::default(),Projection::Perspective(PerspectiveProjection{near:0.05,far:2500.0,..default()}),DistanceFog{color:Color::srgb(0.49,0.68,0.84),falloff:FogFalloff::Linear{start:focus.radius*0.7,end:focus.radius},..default()},Transform::from_translation(pos).with_rotation(Quat::from_euler(EulerRot::YXZ,yaw,pitch,0.0))));
+    commands.spawn((DirectionalLight{illuminance:9000.0,..default()},Transform::from_rotation(Quat::from_euler(EulerRot::XYZ,-0.8,0.3,0.0))));
+    commands.spawn((WorldHud,Text::new("Loading Lineage 2"),TextFont::from_font_size(17.0),TextColor(Color::WHITE),Node{position_type:PositionType::Absolute,top:px(16),left:px(16),..default()}));}
+
+#[allow(clippy::too_many_arguments)]
+fn controls(time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,buttons:Res<ButtonInput<MouseButton>>,motion:Res<AccumulatedMouseMotion>,mut window:Query<(&Window,&mut CursorOptions),With<PrimaryWindow>>,mut camera:Query<(&mut Transform,&mut WorldCamera)>,collision:Res<MeshCollisionWorld>,mut focus:ResMut<StreamingFocus>,mut exit:MessageWriter<AppExit>){let Ok((window,mut cursor))=window.single_mut()else{return};let Ok((mut transform,mut camera))=camera.single_mut()else{return};
+    if keys.just_pressed(KeyCode::F10){exit.write(AppExit::Success);}if keys.just_pressed(KeyCode::Escape)||!window.focused{camera.grabbed=false;}if buttons.just_pressed(MouseButton::Right)&&window.focused{camera.grabbed=true;}
+    cursor.grab_mode=if camera.grabbed{CursorGrabMode::Locked}else{CursorGrabMode::None};cursor.visible=!camera.grabbed;
+    if keys.just_pressed(KeyCode::KeyB){camera.collision=!camera.collision;}if keys.just_pressed(KeyCode::KeyC){camera.hull=match camera.hull{Hull::Point=>Hull::Standing,Hull::Standing=>Hull::Crouching,Hull::Crouching=>Hull::Point};}if keys.just_pressed(KeyCode::F5){transform.translation=camera.spawn;}
+    if camera.grabbed{camera.yaw-=motion.delta.x*0.0022;camera.pitch=(camera.pitch-motion.delta.y*0.0022).clamp(-1.55,1.55);transform.rotation=Quat::from_euler(EulerRot::YXZ,camera.yaw,camera.pitch,0.0);
+        let axis=|a,b|f32::from(keys.pressed(a))-f32::from(keys.pressed(b));let direction=transform.rotation*Vec3::new(axis(KeyCode::KeyD,KeyCode::KeyA),0.0,-axis(KeyCode::KeyW,KeyCode::KeyS))+Vec3::Y*axis(KeyCode::Space,KeyCode::ControlLeft);let speed=if keys.pressed(KeyCode::ShiftLeft){150.0}else{30.0};let end=transform.translation+direction.normalize_or_zero()*speed*time.delta_secs().min(0.05);transform.translation=if camera.collision{let trace=collision.trace(transform.translation,end,camera.hull);if trace.fraction<1.0{trace.end+trace.normal*0.001}else{end}}else{end};}
+    focus.position=transform.translation;}
+
+#[allow(clippy::too_many_arguments)]
+fn inspect(mut commands:Commands,time:Res<Time>,keys:Res<ButtonInput<KeyCode>>,buttons:Res<ButtonInput<MouseButton>>,camera:Query<&Transform,With<WorldCamera>>,world:Res<MeshCollisionWorld>,runtime:Res<MapRuntime>,package:Res<MapPackage>,options:Res<ViewerOptions>,mut inspection:ResMut<Inspection>,mut gizmos:Gizmos){inspection.elapsed+=time.delta_secs();let Ok(transform)=camera.single()else{return};
+    if buttons.just_pressed(MouseButton::Left){let end=transform.translation+transform.forward().as_vec3()*500.0;let trace=world.trace(transform.translation,end,Hull::Point);inspection.hit=(trace.fraction<1.0&&!trace.start_solid).then_some(trace.end);inspection.message=format!("Point trace {:.1} m · normal {:?}",(trace.end-transform.translation).length(),trace.normal);}
+    if let Some(point)=inspection.hit{gizmos.sphere(Isometry3d::from_translation(point),0.2,Color::srgb(1.0,0.25,0.1));}
+    if keys.just_pressed(KeyCode::F12)||options.capture_after.is_some_and(|after|inspection.elapsed>=after&&!inspection.captured){fs::create_dir_all(&options.output).expect("Lineage 2 output directory");let path=options.output.join(format!("world-{}.png",inspection.elapsed as u64));commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));inspection.captured=true;
+        let report=serde_json::json!({"map":package.manifest["id"],"camera":transform.translation.to_array(),"resident_chunks":runtime.resident_chunks(),"resident_models":runtime.resident_models(),"instances":runtime.instance_count,"collision_primitives":world.primitive_count(),"failed_chunks":runtime.failed_chunks()});crate::maps::write_json(&options.output.join("world-session.json"),&report).expect("write Lineage 2 inspection report");}}
+fn hud(camera:Query<&Transform,With<WorldCamera>>,runtime:Res<MapRuntime>,collision:Res<MeshCollisionWorld>,inspection:Res<Inspection>,package:Res<MapPackage>,mut text:Query<&mut Text,With<WorldHud>>){let Ok(transform)=camera.single()else{return};for mut text in &mut text{text.0=format!("MASHUP · Lineage 2 · {}\n{} · {} objects · {} terrain/collision primitives\nPosition {:.1}, {:.1}, {:.1} m\nRMB capture mouse · WASD fly · Space/Ctrl up/down · Shift fast\nB collision inspection · C body shape · LMB point trace\nF5 return · F12 capture · Esc release · F10 quit\n{}",package.manifest["id"],runtime.status,runtime.instance_count,collision.primitive_count(),transform.translation.x,transform.translation.y,transform.translation.z,inspection.message);}}
