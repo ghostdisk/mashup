@@ -22,6 +22,7 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 | Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`, `WeaponSelection`, `WeaponInventory<T>`; CS AK/M4A1/Desert Eagle profiles | Reuse intent, equip and ammo state; profiles supply ballistics/presentation. See [weapons.md](weapons.md) |
 | Items/pickups | Equipped weapon inventory exists; no general pickup/item contract yet | Separate item definitions, world instances and pickup interaction; keep source-game restrictions in profiles |
 | Vehicles | No shared vehicle implementation yet | Shared occupancy/entry/exit and driver intent as needed; vehicle assets, handling profiles, and physical simulation remain replaceable |
+| Traffic | Directed meter-space lanes/routes, bounded population and autonomous `TrafficDriverIntent`; policy harness on main | Vehicles consumes driver intent and reports physical speed. Cross-route conflicts, collision sensing and GTA road extraction remain open; see [traffic.md](traffic.md) |
 | World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
 
 This table is a status register, not a claim that planned systems already exist.
@@ -32,6 +33,12 @@ Across systems, define ownership of state, identity/reference semantics, units,
 coordinate conventions, intent/events, and capability requirements when relevant.
 Keep reusable contracts small enough that a second game can actually consume them.
 Importers preserve facts; game profiles supply rules; compositions choose the mix.
+
+Traffic currently owns route policy and population only. Its intent carries
+steering, throttle, brake, target speed and a lookahead point; it never moves a
+vehicle transform. The Vehicles and Traffic workers are aligning this prototype
+with the shared vehicle driver API before integration. Vehicle-reported speed
+feeds following policy; a policy checkpoint alone does not provide driving.
 
 Weapon equipment currently lives on the body in `WeaponInventory<T>`: each entry
 owns its timing, magazine/reserve and profile. `PlayerCommand.weapon_selection`
@@ -63,8 +70,10 @@ sidebar chats and their own worktrees/binaries. Each uses game-specific imported
 assets and runtime output destinations. Share libraries and interfaces, not
 executable ownership or mutable captures/log files.
 
-The first GTA-world/CS-mechanics composition is playable on the imported Grove
-Street region; see [gtasa-cstrike.md](gtasa-cstrike.md). Its caller-owned collision
+The first GTA-world/CS-mechanics composition loads the imported Grove Street
+region; standing support was observed, but the reported ground sticking and
+uphill slowdown still need movement confirmation after the shared fixes. See
+[gtasa-cstrike.md](gtasa-cstrike.md). Its caller-owned collision
 and spawn use the generic first-person gameplay seam. The coordinator owns this
 composition and shared map format design. A dedicated agent may take either task in
 its own worktree, with a separate binary for a runnable mashup. The initial GTA
