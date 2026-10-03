@@ -156,7 +156,15 @@ model roots stand in for source RW-object availability; unloading/loading or an
 inspection-hour change recomputes visibility. This does not change collision
 residency. `--hour` selects a frozen inspection hour, default 12; an advancing
 source clock, sky/weather, source alpha/fade states and LOD selection remain open.
-The implementation still awaits dev build and ordinary runtime verification.
+The dev binary and refreshed import now succeed. The hidden San Fierro runtime
+at hour 12 reports 17 timed roots hidden, one visible and no inactive fallback;
+render visibility leaves source collision resident.
+The Las Venturas comparison at identical camera/streaming settings changes
+timed roots from 5 visible / 26 hidden at hour 12 to 26 visible / 5 hidden at
+hour 22. Both captures retain the same 138,006 collision primitives and
+identical downward body traces, with zero chunk failures. The inactive-pair
+fallback branch has no observed instance in these captures and still needs
+its own ordinary streaming observation.
 
 `00569ab0` establishes that draw-distance limits also use the source COL sphere
 radius and camera far clip, with additional entity flags, fade intervals and LOD
@@ -209,7 +217,11 @@ runtime state. `00728350` updates that state using weather colors and timestep.
 for ordinary-height render candidates through the existing shared mesh format.
 It uses only the first texture layer and an explicitly recorded fixed midday
 source color. This is initial surface coverage, not the dynamic source renderer
-or swimming mechanics. Runtime inspection remains pending the first dev build.
+or swimming mechanics. The dev binary and full water import now succeed.
+The northern San Fierro docks capture shows the textured static water surface,
+with 80 chunks resident, zero pending or failed. A downward point trace passes
+the water and hits the source seabed at Y `-41.357376`; water adds no solid
+collision. This observes base coverage only, not dynamic surface behavior.
 
 Decompiler output loses some x87 intrinsic arguments and sometimes infers
 incorrect types or return values. For example, `0054c500` appears as `void` in

@@ -103,7 +103,7 @@ The primary `draw_distance` remains the first source distance. The paired
 the observed inclusive-start/exclusive-end hour rule, including midnight wrap
 and unavailable-counterpart fallback, to detailed render roots. `--hour 0..23`
 selects a frozen inspection hour, default 12. Collision remains resident when a
-render variant is hidden. This still awaits dev build/runtime confirmation;
+render variant is hidden. The dev binary and refreshed full import now succeed;
 the sky, water color and lighting remain their fixed inspection settings.
 COL payloads preserve original broad bounds in `source_bounds`; model source
 metadata exposes `bounding_sphere` for source distance/culling research. This
@@ -155,9 +155,45 @@ references, five model-level UV repair notes (28 components total) and the
 excluded legacy pedestrian collision archive. No referenced exterior definition
 or geometry was skipped in that pass. Runtime review in San Fierro then exposed
 missing ground at the station because area 13 had been excluded. The importer
-now selects that area too; a fresh import and city runtime review remain pending
-while compiler CPU limits are installed. These counts describe the previous
-area-0 package, not complete exterior or gameplay fidelity.
+now selects that area too. These counts describe the previous area-0 package,
+not complete exterior or gameplay fidelity.
+
+The refreshed full import retains 45,254 IPL placements, including 284 area-13
+placements, with all 11,327 referenced models. It contains 39,137 recognized
+detailed IPL instances and 40,936 instances with source collision. All 6,067
+selected raw LOD references resolve to selected placement identities. The 142
+placed timed models include 26 paired definitions. Source COL spheres are
+present on 7,227 model definitions. Static water adds 304 render surfaces,
+bringing the package to 11,631 models, 45,558 static instances and 760 chunks.
+The warning inventory remains 226 unresolved textures, five UV repair notes and
+the excluded legacy pedestrian collision archive. No selected model was skipped.
+
+The refreshed hidden DX12 inspector at the previous San Fierro camera
+`(-1980,62,-138)` loads 48 chunks with zero pending or failed, 4,805 render roots
+and 199,604 collision primitives. Its downward point trace now hits an upward
+surface at Y `38.853046`, whereas the previous package returned no hit. Standing
+and crouching stop at `39.767445` and `39.310249`, with no starting overlap.
+The framebuffer shows the restored station-area terrain and buildings.
+Evidence is local under `user_data/gtasa/san-fierro-area13`.
+
+Las Venturas at camera `(2020,48,-1320)` loads 43 chunks with zero pending or
+failed at both hour 12 and hour 22. It retains 4,626 render roots, 1,449 models
+and 138,006 collision primitives. Timed visibility changes from five visible
+and 26 hidden at hour 12 to 26 visible and five hidden at hour 22, with no
+inactive fallback. Downward point/standing/crouching traces are identical at
+both hours (Y `9.822315`, `10.736713`, `10.279510`); all normals point upward
+with no starting overlap. Captures show timed facade geometry changing under
+the fixed inspection lighting; this is not source nighttime lighting.
+Evidence is local under `user_data/gtasa/las-venturas-day` and
+`user_data/gtasa/las-venturas-hour22`.
+
+The refreshed Grove Street capture loads 43 chunks with zero pending or failed,
+5,037 render roots, 1,479 models and 134,723 collision primitives. At the same
+X/Z `(2490,1670)`, point, standing and crouching traces stop at Y `12.345749`,
+`13.260149` and `12.802946`, all with upward normals and no starting overlap.
+This preserves the earlier road/body result to the shared solver's current
+two-millimeter contact margin. Evidence is local under
+`user_data/gtasa/grove-refreshed`.
 
 Import counts, excluded interiors, missing definitions, skipped DFFs, unresolved
 textures and other warnings are recorded in `import-report.json`. Exterior
@@ -194,10 +230,18 @@ texture layer at the observed 0.08 repeats per meter. The inspection color is
 the installed EXTRASUNNY_LA Midday WaterRGBA from `timecyc.dat`, not interpolated
 weather. The current shared material is opaque/masked; source water blending,
 second texture layer, waves, reflection, flow, and swimming remain open.
-This first water addition still awaits a refreshed import and runtime review.
+The full import confirms 304 ordinary-height render candidates, with two
+nonrendering surfaces and one high-band surface excluded. Dynamic water fidelity
+and swimming remain open.
+The hidden DX12 capture at camera `(-1700,45,-1500)`, radius 800, shows the
+textured static water surface around San Fierro's northern docks. It loads 80
+chunks with zero pending or failed, 2,932 render roots and 142,729 source collision
+primitives. Its downward point trace passes the rendered water and reaches an
+upward seabed surface at Y `-41.357376`, without starting overlap; water has no
+solid collision. Evidence is local under `user_data/gtasa/north-bay-water`.
 
 Procedural vegetation, day/night vertex effects, special material
-pipelines, source shadow meshes, time-controlled objects and interiors are not
+pipelines, source shadow meshes and interiors are not
 implemented by this first world checkpoint. Collision is source geometry, not
 render-mesh approximation; triangle surfaces have no inferred closed volume.
 The loader currently decodes a chunk synchronously with a per-tick chunk budget;
