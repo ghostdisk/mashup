@@ -17,9 +17,9 @@ explicitly and preserve peers' programs/analysis.
 Use dev builds of this binary only:
 
 ```powershell
-cargo build --locked --bin mashup-gtasa --target-dir target
-cargo run --locked --bin mashup-gtasa --target-dir target -- --import
-cargo run --locked --bin mashup-gtasa --target-dir target
+& D:\Mashup\tools\build.ps1 build --locked --bin mashup-gtasa --target-dir target
+.\target\debug\mashup-gtasa.exe --import
+.\target\debug\mashup-gtasa.exe
 ```
 
 The installation defaults to
@@ -33,6 +33,8 @@ runtime package. Runtime packages must be inside this checkout's `assets/`.
 This worktree uses its own `target/` directory. Shared Cargo outputs were found
 to reuse library artifacts across divergent agent worktrees; preserve existing
 shared artifacts and other agents' running binaries.
+The shared build gate limits compiler/linker work to six logical CPUs at
+BelowNormal priority, with one Cargo job and one heavy build across agents.
 
 For an intermediate Grove Street region, import with `--region-radius 550`.
 The center is currently GTA `(2490, -1670, 13)`. Region selection uses horizontal
@@ -40,7 +42,8 @@ instance origins, so geometry crossing the selected perimeter may be omitted.
 The report marks this as partial coverage. Omit that option for main exterior
 placements from all loaded text and streamed binary IPLs.
 
-The inspector uses RMB to capture the mouse, WASD to fly, Space/Ctrl to ascend
+The inspector opens without requesting keyboard focus or capturing the mouse.
+It uses RMB to capture the mouse, WASD to fly, Space/Ctrl to ascend
 and descend, and Shift for faster travel. Esc releases the mouse; F5 returns to
 the initial view; F10 exits. B toggles a collision-inspection sweep and C cycles
 point, standing and crouching body shapes. This is a world inspection tool,
@@ -82,10 +85,9 @@ dictionary retained. Observed nonfinite UV components in five source models are
 replaced with zero and reported per model; finite positions and independent COL
 geometry are preserved. No missing geometry is synthesized from a bad UV.
 
-Working conversion is GTA `(x,y,z)` to Bevy `(x,z,-y)` at one meter per source
-unit. Source IPL quaternions are conjugated and transformed by this basis.
-The source vertex and placement dimensions motivate the scale; operational
-confirmation against character/road dimensions remains recorded in the manifest.
+Runtime coordinates use 1 unit = 1 meter. GTA `(x,y,z)` becomes Bevy `(x,z,-y)`
+with a source scale of 1.0, applied consistently to rendering, placement and
+collision. Source IPL quaternions are conjugated and transformed by this basis.
 Source coordinates, names, model IDs, draw distances, flags, placement identities,
 interior bits and LOD indices remain available in provenance and object records.
 
@@ -144,8 +146,11 @@ textures and other warnings are recorded in `import-report.json`. Exterior
 selection uses the low byte of the source interior field, retaining area 0 and
 area 13; upper flags are kept. Area 13 includes buildings visible across interiors,
 including `station03_SFS` around San Fierro's station. Filtering it as an ordinary
-interior removed both visible ground and its collision. This selection is supported
-by the installed IPL records and the [MTA building documentation](https://wiki.multitheftauto.com/wiki/CreateBuilding).
+interior removed both visible ground and its collision. Ghidra MCP inspection of
+this executable's area checks at `004071a0` and `004071c0` confirms that entities
+in area 13 are accepted alongside the selected area; see [gtasa-mechanics.md](gtasa-mechanics.md).
+The installed IPL records and [MTA building documentation](https://wiki.multitheftauto.com/wiki/CreateBuilding)
+also support this selection.
 LOD placements are retained in the package, but the initial runtime renders
 detailed models and suppresses models recognized by their LOD names. Exact
 source LOD linking and distance policy remain to be implemented.
@@ -174,8 +179,11 @@ functions. Useful RTTI anchors include `CPlayerPed` at `00944c38`,
 These are type-name data addresses, not identified movement entry points yet.
 Class namespaces exist, but member-function associations have not been recovered.
 The MCP's xref group is loaded server-side but its tools have not appeared in the
-client tool catalog. Inline Ghidra scripts are disabled in the existing server;
-do not treat RTTI anchors or auto-analysis completion as reversed mechanics.
+client tool catalog. Inline Ghidra scripts are disabled in the existing server.
+Read-only PE/RTTI inspection in `tools/gtasa-rtti-inventory.py` instead located the
+on-foot vtable, which was confirmed through MCP memory reads and decompilation.
+See [gtasa-mechanics.md](gtasa-mechanics.md) for the first function evidence;
+auto-analysis completion alone does not establish mechanics fidelity.
 The initial import tool timed out while analysis ran; querying the project and
 analysis status confirmed completion before saving. Do not duplicate the import.
 
