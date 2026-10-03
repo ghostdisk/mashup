@@ -28,6 +28,11 @@ def references(location,aligned=True):
             if not aligned or (pos-start)%4==0:yield pos
             pos=data.find(needle,pos+1,start+size)
 print('Executable',path,'bytes',len(data),'sha256',hashlib.sha256(data).hexdigest(),'base',hex(image_base))
+if len(sys.argv)>1 and sys.argv[1]=='--file-offsets':
+    for token in sys.argv[2:]:
+        offset=int(token,16);location=address(offset)
+        print('File offset',f'{offset:08x}','->',f'{location:08x}' if location is not None else 'not mapped')
+    sys.exit(0)
 if len(sys.argv)>1 and sys.argv[1]=='--references':
     for token in sys.argv[2:]:
         target=int(token,16)

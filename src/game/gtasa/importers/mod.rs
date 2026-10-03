@@ -5,6 +5,7 @@ mod collision;
 mod placement;
 mod renderware;
 mod texture;
+pub mod vehicles;
 
 use crate::maps::{self, Bounds, Result};
 use bevy::prelude::*;

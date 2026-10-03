@@ -86,25 +86,46 @@ fn geometry(data: &[u8]) -> Result<(MeshData, Vec<Value>, usize)> {
     Ok((mesh, materials,repaired_uv))
 }
 
-pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>,Vec<String>)> {
+pub struct SceneFrame {pub name:String,pub parent:i32,pub local:Mat4,pub world:Mat4}
+pub struct SceneAtomic {pub frame:usize,pub geometry:usize,pub flags:u32}
+pub struct ModelScene {pub frames:Vec<SceneFrame>,pub geometries:Vec<(MeshData,Vec<Value>,usize)>,pub atomics:Vec<SceneAtomic>}
+
+/// Preserve vehicle part pivots/hierarchy; the static map path flattens this scene.
+pub fn scene(data:&[u8])->Result<ModelScene> {
     let clump = child(data, 0x10)?;
-    let mut r = Bytes::new(child(child(clump, 0xe)?, 1)?);
-    let nf = r.u32()? as usize; let mut frames = Vec::new();
+    let frame_list=child(clump,0xe)?;let mut r = Bytes::new(child(frame_list, 1)?);
+    let nf = r.u32()? as usize; let mut frames:Vec<SceneFrame> = Vec::new();
+    if nf>100_000 {return Err("invalid DFF frame count".into());}
+    let extensions=chunks(frame_list)?.into_iter().filter(|(id,_)|*id==3).map(|(_,body)|body).collect::<Vec<_>>();
+    if extensions.len()!=nf {return Err("DFF frame extension count does not match frames".into());}
     for index in 0..nf {
         let right = Vec3::from_array(r.floats()?); let up = Vec3::from_array(r.floats()?); let at = Vec3::from_array(r.floats()?); let position = Vec3::from_array(r.floats()?);
         let parent = r.i32()?; r.take(4)?;
         let local = Mat4::from_cols(right.extend(0.0), up.extend(0.0), at.extend(0.0), position.extend(1.0));
         if parent >= index as i32 { return Err("unsupported cyclic/out-of-order DFF frames".into()); }
-        frames.push(if parent < 0 { local } else { *frames.get(parent as usize).ok_or("invalid frame parent")? * local });
+        let frame_name=chunks(extensions[index])?.into_iter().find(|(id,_)|*id==0x253f2fe).map(|(_,body)|String::from_utf8_lossy(body.split(|b|*b==0).next().unwrap_or(body)).trim().to_owned()).unwrap_or_else(||format!("frame_{index}"));
+        let world=if parent < 0 { local } else { frames.get(parent as usize).ok_or("invalid frame parent")?.world * local };
+        frames.push(SceneFrame{name:frame_name,parent,local,world});
     }
     let geometries = chunks(child(clump, 0x1a)?)?.into_iter().filter(|(id, _)| *id == 0xf).map(|(_, bytes)| geometry(bytes)).collect::<Result<Vec<_>>>()?;
-    let mut mesh = MeshData::default(); let mut material_list = Vec::new();let mut warnings=Vec::new();
-    for (index,(_,_,count)) in geometries.iter().enumerate(){if *count>0 {warnings.push(format!("geometry {index}: replaced {count} nonfinite UV components with zero; positions/collision preserved"));}}
+    let mut atomics=Vec::new();
     for (_, atomic) in chunks(clump)?.into_iter().filter(|(id, _)| *id == 0x14) {
         let mut r = Bytes::new(child(atomic, 1)?); let frame = r.u32()? as usize; let geometry = r.u32()? as usize;
-        let matrix = *frames.get(frame).ok_or("atomic frame missing")?;
+        let flags=r.u32()?;r.take(4)?;
+        if frame>=frames.len() || geometry>=geometries.len() {return Err("atomic frame/geometry missing".into());}
+        atomics.push(SceneAtomic{frame,geometry,flags});
+    }
+    Ok(ModelScene{frames,geometries,atomics})
+}
+
+pub fn model(data: &[u8]) -> Result<(MeshData, Vec<Value>,Vec<String>)> {
+    let scene=scene(data)?;
+    let mut mesh = MeshData::default(); let mut material_list = Vec::new();let mut warnings=Vec::new();
+    for (index,(_,_,count)) in scene.geometries.iter().enumerate(){if *count>0 {warnings.push(format!("geometry {index}: replaced {count} nonfinite UV components with zero; positions/collision preserved"));}}
+    for atomic in &scene.atomics {
+        let matrix=scene.frames[atomic.frame].world;
         let normal_matrix = Mat3::from_mat4(matrix).inverse().transpose();
-        let (source, materials,_) = geometries.get(geometry).ok_or("atomic geometry missing")?;
+        let (source, materials,_) = &scene.geometries[atomic.geometry];
         let vertex_base = mesh.vertices.len() as u32; let material_base = material_list.len() as u32;
         for vertex in &source.vertices {
             let mut v = *vertex;
