@@ -78,7 +78,7 @@ thread listings and update this register as needed.
 
 | Worker | Dispatch reference | Confirmed thread ID |
 | --- | --- | --- |
-| UI | `client-new-thread:2f92d5a1-64e1-4210-97e3-6a6c7fbff979` | Pending app listing |
+| UI | `client-new-thread:2f92d5a1-64e1-4210-97e3-6a6c7fbff979` | `01a102e1-7d3a-79a2-88d7-f72601960337` |
 | Lineage 2 | `client-new-thread:266933e8-d2ab-4beb-9acf-db6c576cd155` | Pending app listing |
 | Assets and Games | `client-new-thread:62b799f1-a671-4e74-b221-9ef62970cb68` | `01a102e1-908b-78f2-966e-474eab25dd2c` |
 | Vehicles | `client-new-thread:a7c3089d-a7cd-4948-a954-d394dd01f2bf` | Pending app listing |
