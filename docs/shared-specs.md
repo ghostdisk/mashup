@@ -22,9 +22,9 @@ CS mechanics with the GTA world is a separate composition, not a GTA-port featur
 | Weapons | Generic `WeaponConfig`, `WeaponState`, `WeaponEvent`, `WeaponSelection`, `WeaponInventory<T>`; CS AK/M4A1/Desert Eagle profiles | Reuse intent, equip and ammo state; profiles supply ballistics/presentation. See [weapons.md](weapons.md) |
 | Items/pickups | Equipped weapon inventory exists; no general pickup/item contract yet | Separate item definitions, world instances and pickup interaction; keep source-game restrictions in profiles |
 | Traffic | Directed meter-space lanes/routes, bounded population and autonomous `TrafficDriverIntent`; policy harness on main | Vehicles consumes driver intent and reports physical speed. Cross-route conflicts, collision sensing and GTA road extraction remain open; see [traffic.md](traffic.md) |
-| NPC AI | `AiPlugin<W>` writes `PlayerCommand` for explicitly marked actors and moves them through the shared solver; perception, local detours and contact damage prototype on main | Global navigation, shared damage events, weapon combat and animation binding remain open; dev build is pending. See [ai.md](ai.md) |
+| NPC AI | `AiPlugin<W>` writes `PlayerCommand` for explicitly marked actors and moves them through the shared solver; perception, local detours and contact damage prototype on main; dev build passed | Damage/death lifecycle and demo weapon integration are the next checkpoint; navigation and animation binding remain open. See [ai.md](ai.md) |
 | Asset/game discovery | Read-only `Catalog` adapts GoldSrc sidecars and GTA packages into game-namespaced `AssetRecord`s; source-game registry and inspector on main | Canonical payloads stay importer-owned; capabilities describe discovered content, not universal runtime support. See [assets.md](assets.md) and [games.md](games.md) |
-| Vehicles | Shared `Vehicle`, `VehicleState`, `DriverIntent`, `Occupancy`, AABB collision seam and fixed-step simulator; box-car source checkpoint, dev build pending | Reuse intent for player/traffic/VR; controller adapter separation and collision capability handling remain open. See [vehicles.md](vehicles.md) |
+| Vehicles | Shared `Vehicle`, `VehicleState`, `DriverIntent`, `Occupancy`, optional keyboard adapter, backend capability gating and fixed-step simulator; dedicated dev build pending | Reuse intent for player/traffic/VR; conservative rotated body bounds need a correction before driving is validated. See [vehicles.md](vehicles.md) |
 | World interactions | Source entity metadata exists in GoldSrc imports | Stable object identity and useful common interaction events; namespaced source data until an actual shared semantic emerges |
 
 This table is a status register, not a claim that planned systems already exist.
@@ -42,11 +42,11 @@ vehicle transform. The Vehicles and Traffic workers are aligning this prototype
 with the shared vehicle driver API before integration. Vehicle-reported speed
 feeds following policy; a policy checkpoint alone does not provide driving.
 
-The vehicle API is now on main; Traffic's dependent adapter is in progress.
+The vehicle API and Traffic's dependent adapter are now on main.
 Intent adapters should run in `CharacterSystems::Intent`, before simulation in
 `CharacterSystems::Movement`, with one active writer per vehicle. The initial
-simulator also installs keyboard input during Movement; Vehicles is separating
-that adapter so it cannot overwrite VR or AI intent. `Occupancy.driver` retains
+simulator is controller-neutral; `KeyboardDrivingPlugin` installs an optional
+intent adapter for explicitly marked controllers. `Occupancy.driver` retains
 the character entity; body placement, active movement and camera handoffs must
 be completed by the consuming composition. The current box-car demonstration
 does not yet establish integration with the CS walking controller.
@@ -56,8 +56,9 @@ of sight. `AiActor` marks bodies whose intent and movement belong to AI; a
 composition must avoid installing a second movement writer on those actors.
 The first contact attack changes `AiHealth` directly and has no shared combat
 event contract yet. Its local obstacle probes do not provide global navigation.
-This source checkpoint has been pushed while its gated build remains pending;
-runtime NPC behavior is not yet confirmed.
+This source checkpoint has been pushed and its capped dev build passed;
+runtime NPC behavior is not yet confirmed. The NPC worker is adding damage/death
+state and coordinating weapon hits with the demo composition.
 
 Weapon equipment currently lives on the body in `WeaponInventory<T>`: each entry
 owns its timing, magazine/reserve and profile. `PlayerCommand.weapon_selection`

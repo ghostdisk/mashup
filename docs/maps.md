@@ -57,10 +57,15 @@ See [gtasa-cstrike.md](gtasa-cstrike.md) for commands and limits.
 GTA placement provenance now preserves source LOD links resolved against the
 parent text IPL before filtering. Coverage distinguishes unresolved links from
 targets excluded by selection; exact runtime LOD visibility is still open.
-The shared renderer currently skips LOD mesh/entity creation entirely. World
-Presentation is implementing a startup opt-in and placed-instance metadata hook
-so source-owned policies can select visible representations without changing
-detailed collision. This hook is planned work; GTA's exact policy stays in its port.
+The shared renderer now supports startup opt-in LOD mesh/entity creation through
+`MapRuntimeConfig.materialize_lods`; detailed-only rendering remains the default.
+Placed-instance/model identity and provenance let source-owned policies select
+visible representations without changing detailed collision. World Presentation's
+inspector built and ran headlessly on a small local package: enabling LODs produced
+one visible detailed root and one hidden LOD root, while collision retained only
+the detailed primitive. This confirms the shared hook, not GTA's exact LOD policy,
+which stays in its port. An optional collision-resource sink for compositions that
+switch between package and BSP worlds is being implemented; it is not yet verified.
 Lineage 2 has a terrain-tile adapter into the same v1 mesh/chunk/collision
 package, but actual client extraction and source elevation calibration remain
 pending. Neither checkpoint adds a new global format or collision capability.

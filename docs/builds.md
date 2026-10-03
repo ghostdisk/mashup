@@ -43,6 +43,13 @@ artifacts remain compatible; changed feature sets may compile a new variant once
 Do not clean the shared cache or alter compiler profiles/flags for a single worker.
 Do not manually reuse another worktree's application artifacts.
 
+Renderer-specific dependencies should be opt-in rather than expanding every
+game's dependency graph. UI owns separating CEF behind an optional `html-ui`
+feature, with action/state types usable without the browser renderer. This
+separation is assigned work, not yet a published capability. The first native
+demo checkpoint must not wait for CEF integration. An active CEF build can still
+populate its legitimate shared feature variant; do not cancel it or alter profiles.
+
 A worker sandbox may permit writes only inside its worktree, while the shared
 cache lives under the primary checkout. Use the narrow execution escalation for
 the authorized central-helper build when needed; automatic review handles that

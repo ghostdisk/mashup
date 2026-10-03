@@ -16,7 +16,7 @@ private Cargo target, dedicated binary and generated-output directory.
 | Lineage 2 | Inspect local client and import a useful map region into shared packages | `src/game/lineage2/`, its importer/glue, `docs/lineage2.md` | `mashup-lineage2` |
 | Assets and Games | Small usable cross-game asset catalog and source-game/import registry | `src/assets/`, registry/tool glue, `docs/assets.md`, `docs/games.md` | `mashup-assets` |
 | Vehicles | Box car, shared vehicle intent/state, player enter/drive/exit with current character controller | `src/vehicle/`, vehicle controller/demo glue, `docs/vehicles.md` | `mashup-vehicles` |
-| NPC AI | Placeholder NPCs that perceive, navigate locally and react/attack via shared intent/events | `src/ai/`, NPC demo glue, `docs/ai.md` | `mashup-npc` |
+| NPC AI | Compiled perception/chase/contact prototype; next damage/death lifecycle and demo weapon integration | `src/ai/`, NPC demo glue, `docs/ai.md` | `mashup-npc` |
 | Traffic | Separate lane/route representation, spawning and autonomous driving intent | `src/traffic/`, traffic demo/source path extraction, `docs/traffic.md` | `mashup-traffic` |
 | VR Controls | Real VR adapter to existing character and weapon intent, with desktop development fallback | VR controller/glue, `docs/vr-controls.md` | `mashup-vr-controls` |
 | GTA Assets | First car and pedestrian imports, then broader usable GTA model/animation coverage | New GTA vehicle/pedestrian/model-export modules and CLI, `docs/gtasa-assets.md` | `mashup-gtasa-assets` |
