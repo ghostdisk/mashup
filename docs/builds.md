@@ -114,5 +114,6 @@ reported that Bevy dependencies were reused immediately. Compilation reached its
 own source and exposed a JSON macro error, which the worker corrected for the
 next invocation. This verifies the scheduling/cache handoff, not a playable demo.
 Traffic and Lineage 2 subsequently reported successful dev builds through the
-core lane; CS also completed its current-main dev build. Optional renderer
+core lane; CS also completed a dev build containing its slope correction (at
+commit `74c2f5d`, before later unrelated main checkpoints). Optional renderer
 compilation no longer holds the ordinary dependency cache's Cargo lock.

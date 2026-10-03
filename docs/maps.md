@@ -28,7 +28,7 @@ in meters. `MeshCollisionWorld` and the floor backend implement that sweep;
 the trait's legacy default approximates it with `Hull::Standing` and ignores
 the requested dimensions. That fallback is not full vehicle-body collision.
 Compositions must account for backend shape support before enabling vehicles;
-explicit capability handling is being coordinated with Vehicles. A rotating
+`supports_aabb` now provides this capability check. A rotating
 body also needs conservative world-space bounds for an axis-aligned sweep.
 
 The GTASA port now contributes an initial package/import/runtime prototype. The supplied local installation is
@@ -50,8 +50,9 @@ source geometry. Streaming follows the player's body. The ordinary Grove Street
 capture showed 23 resident chunks, 3,185 detailed world instances, 79,697 collision
 primitives, grounded support and no body overlap or failed chunks. Standing
 support is confirmed; the reported ground sticking and uphill slowdown still
-need movement confirmation after the shared fixes. Full-world presentation
-remains port work in progress.
+need movement confirmation after the shared fixes. The GTA port has separately
+verified its refreshed full-world package; this is not yet mixed-controller
+movement evidence.
 See [gtasa-cstrike.md](gtasa-cstrike.md) for commands and limits.
 
 GTA placement provenance now preserves source LOD links resolved against the
@@ -64,8 +65,11 @@ visible representations without changing detailed collision. World Presentation'
 inspector built and ran headlessly on a small local package: enabling LODs produced
 one visible detailed root and one hidden LOD root, while collision retained only
 the detailed primitive. This confirms the shared hook, not GTA's exact LOD policy,
-which stays in its port. An optional collision-resource sink for compositions that
-switch between package and BSP worlds is being implemented; it is not yet verified.
+which stays in its port. `MapCollisionSink` and
+`MapRuntimePlugin::with_collision_sink<W>()` are now on main for compositions
+that own a combined package/BSP collision resource. The ordinary plugin still
+uses `MeshCollisionWorld`. The sink checkpoint's dedicated build remains pending;
+it does not itself migrate GoldSrc BSP into the package format.
 Lineage 2 has a terrain-tile adapter into the same v1 mesh/chunk/collision
 package, but actual client extraction and source elevation calibration remain
 pending. Neither checkpoint adds a new global format or collision capability.
@@ -74,8 +78,19 @@ See [lineage2.md](lineage2.md) for its current import limitations.
 GTA now exports finite water base surfaces through existing world meshes and
 separate chunk identities, retaining source parameters in provenance. These
 surfaces add rendering geometry only; swimming, buoyancy, waves and reflections
-remain separate game/runtime features. The refreshed full-world import and
-rendered coverage are still pending validation.
+remain separate game/runtime features. The refreshed full-world checkpoint
+contains 45,254 IPL placements, 11,631 models, 760 chunks and 304 static water
+surfaces; all 6,067 raw LOD links resolved. Hidden runtime captures verified
+Grove Street, San Fierro station, Las Venturas at hours 12/22 and north-bay water
+with zero pending or failed chunks. Timed-root visibility changed from 5/26
+visible/hidden to 26/5 with identical collision primitives and traces. The water
+trace passes through the rendered surface to the seabed; it has no solid collision.
+Mixed GTA compositions should install `GtaWorldPresentationPlugin` for the
+source-owned timed visibility policy (default frozen hour 12). The finalized
+package stays in the GTASA worker's ignored outputs and can be consumed read-only;
+do not duplicate the full conversion. Exact LOD distance/fade rules, dynamic
+water and advancing clock/lighting remain open. See [gtasa-import.md](gtasa-import.md)
+for capture locations and source coverage limitations.
 
 ## Why a custom format
 
