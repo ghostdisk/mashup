@@ -7,6 +7,9 @@ pub mod character;
 pub mod controller;
 pub mod game;
 pub mod glue;
+pub mod importers;
+#[cfg(feature = "vr")]
+pub mod vr;
 
 /// Composition order for controllers and body movement.
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]

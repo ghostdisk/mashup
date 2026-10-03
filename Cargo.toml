@@ -6,10 +6,32 @@ rust-version = "1.95"
 description = "A modular sandbox for locally imported game assets and interchangeable mechanics"
 license = "MIT"
 publish = false
+default-run = "mashup"
 exclude = ["assets/imported/**", "user_data/**"]
+
+[features]
+default = []
+vr = ["dep:bevy_mod_openxr", "dep:bevy_mod_xr", "dep:openxr"]
+
+[[bin]]
+name = "mashup-vr"
+path = "src/bin/mashup-vr.rs"
+required-features = ["vr"]
 
 [dependencies]
 bevy = { version = "0.19.1", default-features = false, features = ["3d", "ui"] }
+png = "0.18.1"
+serde_json = "1.0"
+thiserror = "2.0"
+bevy_mod_openxr = { version = "0.6.0", optional = true, features = ["window_support"] }
+bevy_mod_xr = { version = "0.6.0", optional = true, default-features = false }
+openxr = { version = "0.21.1", optional = true }
+
+[dev-dependencies]
+gltf = { version = "1.4", default-features = false, features = ["utils", "names"] }
+
+[package.metadata.mashup]
+meters-per-goldsrc-unit = 0.0254
 
 [profile.dev]
 opt-level = 1

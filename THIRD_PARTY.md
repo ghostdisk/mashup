@@ -5,8 +5,15 @@ licenses of dependencies, vendored code, fonts or player-owned game content.
 
 ## Current dependencies
 
-The direct dependency is [Bevy](https://github.com/bevyengine/bevy), licensed
-MIT OR Apache-2.0. The exact dependency graph is recorded in `Cargo.lock`;
+The direct runtime dependencies are Bevy, png, serde_json and thiserror; all are
+MIT or MIT OR Apache-2.0. The test-only gltf crate is MIT OR Apache-2.0.
+The optional `vr` feature adds `bevy_mod_openxr` and `bevy_mod_xr` 0.6.0 from
+[bevy_oxr](https://github.com/awtterpip/bevy_oxr), licensed MIT OR Apache-2.0,
+and the MIT OR Apache-2.0 `openxr` Rust bindings. The Windows integration
+statically links the OpenXR loader built by `openxr-sys`; its bundled SDK and
+subdependency notices must also be included when packaging a VR build.
+Tracking glue, humanoid IK and mirrored-pose synchronization are original code.
+The exact dependency graph is recorded in `Cargo.lock`;
 each transitive dependency retains its declared license. The starter UI uses
 Bevy's bundled Fira Mono font, licensed under SIL OFL-1.1. Its copyright and
 full license are preserved in
@@ -19,7 +26,9 @@ to package metadata, especially for bundled fonts, shaders and other assets.
 
 ## Existing third-party source
 
-No game source or other vendored implementation is included in this scaffold.
+No game source or other vendored implementation is included. GoldSrc readers are
+original implementations; links to layout references are in
+[`docs/goldsrc-import.md`](docs/goldsrc-import.md).
 For future vendoring, create `third_party/<name>/` with the original license,
 copyright and attribution notices, plus a provenance document containing:
 

@@ -6,7 +6,8 @@ interchangeable controllers, animation and mechanics.
 We distribute our engine application, original code and converters. Players
 must have each source game installed and explicitly import their own assets.
 Source-game files and converted content are never bundled with this repository
-or our releases. No importers are implemented yet.
+or our releases. Half-Life and Counter-Strike 1.6 imports are available now; see
+the [GoldSrc import guide](docs/goldsrc-import.md) for commands and supported features.
 
 ## Run
 
@@ -19,11 +20,15 @@ Linux and macOS setup is described in the
 cargo run --locked
 ```
 
-The starter opens a 3D scene with a floor, a green capsule character, lighting
-and a greeting. Move with **WASD** or **arrow keys**; press **Esc** to exit.
-The camera is fixed. Movement is a small bounded kinematic demo, without physics,
-collision, imported models or source-game mechanics. All scene meshes are generated
-in code; UI uses Bevy's bundled font. No source game is needed for this demo.
+When local imports exist, the app opens the model/map viewer. **Tab** selects an
+asset; character animations can be selected with **left/right arrows**, paused with
+**Space**, and looped with **L**. **Esc** exits. The UI lists camera controls.
+The runtime uses **one unit = one meter**.
+
+Without imports, or with `cargo run --locked -- --sandbox`, it opens the procedural
+capsule demo. That demo moves with **WASD/arrows**, uses a fixed camera, and needs no
+source game. Gameplay, collision and exact source-game movement are not implemented
+yet. UI uses Bevy's bundled font.
 
 If the Windows Vulkan backend emits startup validation messages, try DirectX 12.
 In PowerShell:
@@ -39,6 +44,22 @@ automatic selection: `Remove-Item Env:WGPU_BACKEND`.
 The first build compiles Bevy and takes time. Dependencies are optimized in dev
 builds so the renderer runs smoothly. `Cargo.lock` is committed for reproducibility.
 
+## Optional VR mashup
+
+The library (`src/lib.rs`) is the shared engine. Concrete mashups are binaries
+which choose engine plugins and game glue. `mashup-vr` is a separate pose-checking
+room with OpenXR head/controller tracking, a character rig and a synchronized
+mirrored character. VR dependencies are enabled only with the `vr` feature.
+
+```sh
+cargo run --locked --features vr --bin mashup-vr
+cargo run --locked --features vr --bin mashup-vr -- --simulate
+```
+
+Import Gordon first, or select another supported humanoid using `--model`.
+See the [VR guide](docs/vr.md) for runtime probing, controls, supported rigs and
+current limitations. All commands use dev builds.
+
 ## Layout
 
 ```text
@@ -47,11 +68,20 @@ src/
   lib.rs                     Shared plugin and system ordering
   character.rs               Body marker and movement intent; no input/camera rules
   controller/keyboard.rs     Independent controller targeting a body entity
-  animation/                 Reserved for playback, rig adapters and animation intent
+  animation/                 Shared animation catalog and playback requests
+  importers/goldsrc/         MDL v10, BSP v30, WAD3 readers and GLB exporters
+  bin/mashup-import.rs        Explicit offline import CLI
+  bin/mashup-vr.rs            Concrete optional VR mashup binary
+  vr/                        Tracking poses, OpenXR adapter, avatar IK and pose copy
+  glue/vr_room.rs             VR character pose-checking composition
   glue/sandbox.rs            Demo scene; selects controller and movement behavior
+  glue/asset_viewer.rs       Local model/animation inspector and map fly-through
   game/
+    hl/
+      importers/             Half-Life converter entry points
+      game/                  Independently written mechanics (placeholder)
     cstrike/
-      importers/             Local asset conversion (placeholder)
+      importers/             Counter-Strike 1.6 converter entry points
       game/                  Independently written mechanics (placeholder)
     gtasa/
       importers/             Local asset conversion (placeholder)
@@ -76,7 +106,7 @@ Importers translate formats and record provenance; they do not select gameplay.
 Game modules implement mechanics without requiring that game's models. Glue code
 chooses combinations: an FPS character or weapon can be used with third-person
 rules, and vice versa. A future Half-Life movement implementation would live at
-`src/game/half_life/game/movement.rs` (Rust module names use underscores).
+`src/game/hl/game/movement.rs`.
 
 ## Licensing and content boundaries
 
@@ -103,6 +133,7 @@ See [THIRD_PARTY.md](THIRD_PARTY.md) for the dependency and release notice polic
 
 ```sh
 cargo fmt --check
+cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo install cargo-deny --locked
 cargo deny --locked check licenses sources
@@ -110,5 +141,5 @@ cargo deny --locked check licenses sources
 
 `deny.toml` enforces an explicit license allowlist across transitive dependencies.
 Any new license requires review before changing that allowlist. CI runs formatting,
-Clippy and license checks. Release packaging must also include the actual required
+Clippy, unit tests and license checks. Release packaging must also include the actual required
 dependency license texts and notices, and exclude all local imported content.

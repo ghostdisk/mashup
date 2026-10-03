@@ -1,5 +1,6 @@
 //! Integrations keep asset conversion separate from independently written rules.
-//! These namespaces contain scaffolding only; no game assets or upstream source.
+//! No game assets or upstream implementations are shipped in these namespaces.
 
 pub mod cstrike;
 pub mod gtasa;
+pub mod hl;
