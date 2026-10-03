@@ -28,6 +28,21 @@ F5 resets the player and gun, F12 saves a screenshot, and F10 exits.
 The dedicated binary writes screenshots and movement telemetry under ignored
 `user_data/cstrike/`; the shared `mashup --play` composition uses `user_data/mashup/`.
 
+On Windows, `tools/cstrike-dev.ps1` launches the dedicated dev executable and
+records its identity. Subsequent input targets only that recorded CS window:
+
+```powershell
+./tools/cstrike-dev.ps1 -Action launch
+./tools/cstrike-dev.ps1 -Action key -Key 50 # slot 2
+./tools/cstrike-dev.ps1 -Action mouse -Button left -DurationMs 500
+./tools/cstrike-dev.ps1 -Action capture # native F12 render-target capture
+./tools/cstrike-dev.ps1 -Action stop
+```
+
+The script verifies executable path, process name and start time before control.
+It refuses another executable or a binary outside its own worktree, and never
+reads desktop pixels. `-Binary` can select a private dev-output path in this tree.
+
 `--map <GLB>` and `--weapon <GLB>` select separately imported content.
 `--movement hl` switches to the Half-Life profile without changing either asset.
 The map currently needs a GoldSrc collision catalog; other map backends can implement

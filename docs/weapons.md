@@ -96,3 +96,16 @@ animation-variant selection and recoil RNG are approximate. Penetration, armor,
 hitgroups, underwater attack restrictions, automatic empty-magazine reload,
 source idle scheduling, audio/animation events and viewmodel bob are unfinished.
 No source binary, decompiler output or imported game content is distributed.
+
+## Runtime checkpoint
+
+The dedicated Windows CS dev executable was built into this agent's private
+output and manually exercised on Dust2 on 2026-10-03. Native F12 frames showed
+M4A1 draw/fire/attach-silencer playback and six rounds spent from a 30-round
+magazine. Its completed reload changed 24/90 to 30/84. The Desert Eagle fired
+one round during a held press across deploy readiness, another on the next
+press, then began reloading at 5/35. Switching away and back retained 5/35,
+confirming that the cancelled reload did not refill it. Rapid switching replaced
+the displayed model, and the M4A1 retained its silencer state. Captures/logs are
+local ignored output under `user_data/cstrike`; these observations establish a
+playable checkpoint, not source-game equivalence.
